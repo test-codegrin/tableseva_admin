@@ -4,13 +4,13 @@ import RegisterPage from "../pages/RegisterPage";
 import Login from "../components/Login";
 
 // Dashboard child pages
-import DashboardHome from "../pages/dashboard/DashboardHome";
-import CategoryManagement from "../pages/dashboard/CategoryManagement";
-import TableManagement from "../pages/dashboard/TableManagement";
-import QRCodeGeneration from "../pages/dashboard/QRCodeGeneration";
-import Inventory from "../pages/dashboard/Inventory";
-import Payments from "../pages/dashboard/Payments";
-import LiveOrders from "../pages/dashboard/LiveOrders";
+import DashboardHome from "../pages/DashboardHome";
+import CategoryManagement from "../pages/CategoryManagement";
+import TableManagement from "../pages/TableManagement";
+import QRCodeGeneration from "../pages/QRCodeGeneration";
+import Inventory from "../pages/Inventory";
+import Payments from "../pages/Payments";
+import LiveOrders from "../pages/LiveOrders";
 import DashboardLayout from "../layout/DashboardLayout";
 
 export default function AppRoutes() {
