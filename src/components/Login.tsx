@@ -12,7 +12,7 @@ import {
   Input,
   Label,
 } from "@heroui/react";
-import { Icon, ICONS } from "../components/icons";   // ← single import for all icons
+import { Icon, ICONS } from "../config/icons";   // ← single import for all icons
 
 export default function Login() {
   const navigate = useNavigate();

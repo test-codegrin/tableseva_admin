@@ -2,24 +2,25 @@
 
 import { useState } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
-import { Icon, ICONS } from "../components/icons";
+import { Icon, ICONS } from "../config/icons";
 
 const navItems = [
-  { label: "Dashboard",            icon: ICONS.dashboard,    path: "/dashboard"           },
-  { label: "Category Management",  icon: ICONS.categoryMgmt, path: "/dashboard/category"  },
-  { label: "Table Management",     icon: ICONS.tableMgmt,    path: "/dashboard/tables"    },
-  { label: "QR Code Generation",   icon: ICONS.qrCode,       path: "/dashboard/qr-code"   },
-  { label: "Stock / Inventory",    icon: ICONS.inventory,    path: "/dashboard/inventory" },
-  { label: "Payments",             icon: ICONS.payments,     path: "/dashboard/payments"  },
-  { label: "Live Orders Tracking", icon: ICONS.liveOrders,   path: "/dashboard/orders"    },
+  { label: "Dashboard", icon: ICONS.dashboard, path: "/dashboard" },
+  { label: "Category Management", icon: ICONS.categoryMgmt, path: "/category" },
+  { label: "Table Management", icon: ICONS.tableMgmt, path: "/tables" },
+  { label: "QR Code Generation", icon: ICONS.qrCode, path: "/qr-code" },
+  { label: "Stock / Inventory", icon: ICONS.inventory, path: "/inventory" },
+  { label: "Payments", icon: ICONS.payments, path: "/payments" },
+  { label: "Live Orders Tracking", icon: ICONS.liveOrders, path: "/orders" },
 ];
 
-export default function Dashboard() {
-  const navigate     = useNavigate();
-  const { pathname } = useLocation();               // derive active item from URL
+export default function DashboardLayout() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation(); // derive active item from URL
   const [collapsed, setCollapsed] = useState(false);
 
-  const activeItem = navItems.find((item) => item.path === pathname) ?? navItems[0];
+  const activeItem =
+    navItems.find((item) => item.path === pathname) ?? navItems[0];
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -41,7 +42,10 @@ export default function Dashboard() {
             className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            <Icon icon={collapsed ? ICONS.chevronRight : ICONS.chevronLeft} width={20} />
+            <Icon
+              icon={collapsed ? ICONS.chevronRight : ICONS.chevronLeft}
+              width={20}
+            />
           </button>
         </div>
 
@@ -90,12 +94,18 @@ export default function Dashboard() {
         {/* Top Bar */}
         <header className="bg-white shadow-sm px-6 py-4 flex items-center justify-between shrink-0">
           <div>
-            <h1 className="text-lg font-semibold text-gray-800">{activeItem.label}</h1>
+            <h1 className="text-lg font-semibold text-gray-800">
+              {activeItem.label}
+            </h1>
             <p className="text-xs text-gray-400">TableSeva Admin Panel</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-              <Icon icon={ICONS.account} width={18} className="text-green-600" />
+              <Icon
+                icon={ICONS.account}
+                width={18}
+                className="text-green-600"
+              />
             </div>
             <span className="text-sm font-medium text-gray-700">Admin</span>
           </div>
