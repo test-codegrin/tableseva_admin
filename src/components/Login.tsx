@@ -3,16 +3,18 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loginApi } from "../api/authApi";
+import { Icon, ICONS } from "../config/icons";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  toast,
-  Button,
   Card,
+  CardContent,
   CardHeader,
   CardFooter,
-  Input,
-  Label,
-} from "@heroui/react";
-import { Icon, ICONS } from "../config/icons";   // ← single import for all icons
+} from "@/components/ui/card";
+import { toast } from "sonner";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,9 +31,8 @@ export default function Login() {
 
   const handleSubmit = async () => {
     if (!formData.email || !formData.password) {
-      toast("Missing Fields", {
+      toast.error("Missing Fields", {
         description: "Please enter your email and password.",
-        variant: "default",
       });
       return;
     }
@@ -41,9 +42,8 @@ export default function Login() {
       const res = await loginApi(formData);
       console.log(res);
 
-      toast("Login Successful", {
+      toast.success("Login Successful", {
         description: "Welcome back! Redirecting...",
-        variant: "default",
       });
 
       setTimeout(() => {
@@ -52,9 +52,8 @@ export default function Login() {
     } catch (error: any) {
       const message =
         error?.response?.data?.message || "Login Failed. Please try again.";
-      toast("Login Failed", {
+      toast.error("Login Failed", {
         description: message,
-        variant: "default",
       });
     } finally {
       setLoading(false);
@@ -63,13 +62,15 @@ export default function Login() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-6">
-      <Card className="w-full max-w-md shadow-xl rounded-2xl p-0">
+      <Card className="w-full max-w-md shadow-xl rounded-2xl">
         <CardHeader className="flex flex-col items-start px-6 pt-6 pb-3">
           <h2 className="text-xl font-semibold">Welcome Back</h2>
-          <p className="text-sm">Login to your TableSeva account</p>
+          <p className="text-sm text-muted-foreground">
+            Login to your TableSeva account
+          </p>
         </CardHeader>
 
-        <div className="px-6 py-5 space-y-4">
+        <CardContent className="px-6 py-5 space-y-4">
           {/* Email */}
           <div className="flex flex-col gap-2 w-full">
             <Label htmlFor="email" className="text-sm font-medium">
@@ -79,7 +80,7 @@ export default function Login() {
               <Icon
                 icon={ICONS.email}
                 width={18}
-                className="absolute left-3 pointer-events-none"
+                className="absolute left-3 text-muted-foreground pointer-events-none"
               />
               <Input
                 id="email"
@@ -87,7 +88,7 @@ export default function Login() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleChange("email", e.target.value)}
-                className="pl-10 w-full"
+                className="pl-9 w-full"
               />
             </div>
           </div>
@@ -101,7 +102,7 @@ export default function Login() {
               <Icon
                 icon={ICONS.lock}
                 width={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
               />
               <Input
                 id="password"
@@ -109,18 +110,17 @@ export default function Login() {
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={(e) => handleChange("password", e.target.value)}
-                className="w-full pl-10 pr-10"
+                className="w-full pl-9 pr-10"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 title={showPassword ? "Hide password" : "Show password"}
               >
                 <Icon
                   icon={showPassword ? ICONS.eyeOff : ICONS.eyeOn}
                   width={18}
-                  className="text-default-400"
                 />
               </button>
             </div>
@@ -130,20 +130,26 @@ export default function Login() {
           <Button
             type="button"
             size="lg"
-            className="w-full text-white bg-success"
-            onPress={handleSubmit}
-            isDisabled={loading}
+            className="w-full"
+            onClick={handleSubmit}
+            disabled={loading}
           >
-            {loading ? "Logging In..." : "Log In"}
-            {!loading && <Icon icon={ICONS.arrowRight} width={18} />}
+            {loading ? (
+              "Logging In..."
+            ) : (
+              <>
+                Log In
+                <Icon icon={ICONS.arrowRight} width={18} className="ml-2" />
+              </>
+            )}
           </Button>
-        </div>
+        </CardContent>
 
         <CardFooter className="justify-center px-6 py-4">
-          <p className="text-sm text-default-500">
+          <p className="text-sm text-muted-foreground">
             Don't have an account?{" "}
             <span
-              className="text-success cursor-pointer font-medium hover:underline"
+              className="text-primary cursor-pointer font-medium hover:underline"
               onClick={() => navigate("/register")}
             >
               Create one
