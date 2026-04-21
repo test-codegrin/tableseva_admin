@@ -6,9 +6,9 @@ export { Icon };
 
 export const ICONS = {
   // ─── Sidebar Navigation ─────────────────────────────────────────
-  dashboard:        "mdi:view-dashboard-outline",
-  categoryMgmt:     "mdi:shape-outline",
-  tableMgmt:        "mdi:table-furniture",
+  dashboard:        "ic:outline-dashboard",
+  forkspoon:     "icon-park-twotone:fork-spoon",
+  tableMgmt:        "icon-park-twotone:table",
   qrCode:           "mdi:qrcode",
   inventory:        "mdi:package-variant-closed",
   payments:         "mdi:credit-card-outline",
@@ -21,6 +21,8 @@ export const ICONS = {
 
   // ─── Top Bar / Profile ───────────────────────────────────────────
   account:          "mdi:account",
+  moon:             "stash:moon-solid",
+  question:         "mdi:help-circle-outline",
 
   // ─── Coming Soon ─────────────────────────────────────────────────
   rocketLaunch:     "mdi:rocket-launch-outline",
