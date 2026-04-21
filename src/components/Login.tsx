@@ -133,12 +133,13 @@ export default function Login() {
           <CardFooter className="justify-center px-0 py-5">
             <p className="text-sm text-black/50">
               Don't have an account?{" "}
-              <span
-                className="cursor-pointer font-medium text-[#6938EF] hover:underline"
+              <Button
+                variant={"link"}
+                className="cursor-pointer font-medium "
                 onClick={() => navigate("/register")}
               >
                 Sign Up
-              </span>
+              </Button>
             </p>
           </CardFooter>
         </div>
