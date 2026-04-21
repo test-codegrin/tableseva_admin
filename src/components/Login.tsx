@@ -87,29 +87,30 @@ export default function Login() {
             </div>
 
             {/* Password */}
-            <div className="relative">
-              <Input
-                label="Password"
-                id="password"
-                placeholder="Enter password"
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={(e) => handleChange("password", e.target.value)}
-                className="py-8"
-              />
-              <button
-                title={showPassword ? "Hide password" : "Show password"}
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 bottom-3 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <Icon
-                  icon={showPassword ? ICONS.eyeOn : ICONS.eyeOff}
-                  width={16}
-                />
-              </button>
-            </div>
+           <div className="relative flex items-center">
+  <Input
+    label="Password"
+    id="password"
+    placeholder="Enter password"
+    type={showPassword ? "text" : "password"}
+    value={formData.password}
+    onChange={(e) => handleChange("password", e.target.value)}
+    className="py-8"
+  />
 
+  <button
+    aria-label={showPassword ? "Hide password" : "Show password"}
+    title={showPassword ? "Hide password" : "Show password"}
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-3 top-2/3 -translate-y-2/3 text-black/50 hover:text-gray-600 transition-colors"
+  >
+    <Icon
+      icon={showPassword ? ICONS.eyeOn : ICONS.eyeOff}
+      width={16}
+    />
+  </button>
+</div>
             {/* Submit */}
             <div className="pt-1">
               <Button
@@ -130,7 +131,7 @@ export default function Login() {
           </CardContent>
 
           <CardFooter className="justify-center px-0 py-5">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-black/50">
               Don't have an account?{" "}
               <span
                 className="cursor-pointer font-medium text-[#6938EF] hover:underline"

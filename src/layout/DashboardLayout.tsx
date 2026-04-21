@@ -7,12 +7,12 @@ import { useAuth } from "../context/AuthContext";
 
 const navItems = [
   { label: "Dashboard", icon: ICONS.dashboard, path: "/dashboard" },
-  { label: "Category Management", icon: ICONS.forkspoon, path: "/dashboard/category" },
-  { label: "Table Management", icon: ICONS.tableMgmt, path: "/dashboard/tables" },
-  { label: "QR Code Generation", icon: ICONS.qrCode, path: "/dashboard/qr-code" },
-  { label: "Stock / Inventory", icon: ICONS.inventory, path: "/dashboard/inventory" },
-  { label: "Payments", icon: ICONS.payments, path: "/dashboard/payments" },
-  { label: "Live Orders Tracking", icon: ICONS.liveOrders, path: "/dashboard/orders" },
+  { label: "Category Management", icon: ICONS.forkspoon, path: "/category" },
+  { label: "Table Management", icon: ICONS.tableMgmt, path: "/tables" },
+  { label: "QR Code Generation", icon: ICONS.qrCode, path: "/qr-code" },
+  { label: "Stock / Inventory", icon: ICONS.inventory, path: "/inventory" },
+  { label: "Payments", icon: ICONS.payments, path: "/payments" },
+  { label: "Live Orders Tracking", icon: ICONS.liveOrders, path: "/orders" },
 ];
 
 export default function DashboardLayout() {
@@ -47,7 +47,7 @@ export default function DashboardLayout() {
         </div>
 
         {/* Nav Items */}
-        <nav className="flex-1 py-3 space-y-5 px-2 overflow-y-auto">
+        <nav className="flex-1 py-3 space-y-1 px-2 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = pathname === item.path;
             return (
@@ -55,16 +55,16 @@ export default function DashboardLayout() {
                 key={item.label}
                 onClick={() => navigate(item.path)}
                 title={collapsed ? item.label : undefined}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-[16px] font-medium transition-all duration-150 ${
                   isActive
                     ? "bg-[#CC543A] text-white"
-                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                    : "text-black hover:bg-gray-200 hover:text-gray-900"
                 }`}
               >
                 <Icon
                   icon={item.icon}
-                  width={18}
-                  className={`shrink-0 ${isActive ? "text-white" : "text-gray-400"}`}
+                  width={20}
+                  className={`shrink-0 ${isActive ? "text-white" : "text-black"}`}
                 />
                 {!collapsed && <span className="truncate">{item.label}</span>}
               </button>
@@ -75,11 +75,9 @@ export default function DashboardLayout() {
         {/* Profile section */}
         <div className="mx-2 mb-2 rounded-xl border border-gray-200 bg-white p-2">
           <button
-            onClick={() => navigate("/dashboard/profile")}
+            onClick={() => navigate("/profile")}
             className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition ${
-              pathname === "/dashboard/profile"
-                ? "bg-[#CC543A]/10"
-                : "hover:bg-gray-50"
+              pathname === "/profile" ? "bg-[#CC543A]/10" : "hover:bg-gray-50"
             }`}
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#CC543A]/10 text-[#CC543A]">
@@ -107,14 +105,14 @@ export default function DashboardLayout() {
         {/* Bottom — New Reservation + Logout */}
         <div className="px-2 pb-4 space-y-1 border-t border-gray-100 pt-3">
           {!collapsed && (
-            <button className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold bg-[#CC543A] text-white hover:bg-[#b8472f] transition">
+            <button className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-[16px] font-semibold bg-[#CC543A] text-white hover:bg-[#b8472f] transition">
               <span>+ New Reservation</span>
             </button>
           )}
           <button
             onClick={handleLogout}
             title={collapsed ? "Logout" : undefined}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-500 transition"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[16px] font-medium text-gray-500 hover:bg-red-50 hover:text-red-500 transition"
           >
             <Icon icon={ICONS.logout} width={18} className="shrink-0" />
             {!collapsed && <span>Logout</span>}
@@ -126,7 +124,6 @@ export default function DashboardLayout() {
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Bar */}
         <header className="bg-white/80 border-b border-gray-100 px-6 py-8 flex items-center justify-between shrink-0">
-          {/* Left — collapse toggle + page title */}
           <div className="flex items-center gap-4">
             <button
               onClick={() => setCollapsed(!collapsed)}
@@ -140,13 +137,10 @@ export default function DashboardLayout() {
             </button>
           </div>
 
-          {/* Right — avatar */}
           <div className="flex items-center gap-3">
-            <Icon icon={ICONS.moon} width={18} className="text-black/50" />
             <Icon icon={ICONS.question} width={18} className="text-black/50" />
-
             <button
-              onClick={() => navigate("/dashboard/profile")}
+              onClick={() => navigate("/profile")}
               className="flex items-center gap-2"
               title="Open profile"
             >
@@ -158,7 +152,9 @@ export default function DashboardLayout() {
                     className="h-full w-full rounded-full object-cover"
                   />
                 ) : (
-                  <span className="text-[11px] font-semibold">{initials || "A"}</span>
+                  <span className="text-[11px] font-semibold">
+                    {initials || "A"}
+                  </span>
                 )}
               </div>
               <span className="hidden text-sm text-gray-600 md:block">
@@ -168,7 +164,6 @@ export default function DashboardLayout() {
           </div>
         </header>
 
-        {/* Page content */}
         <div className="flex-1 overflow-auto p-6">
           <Outlet />
         </div>
