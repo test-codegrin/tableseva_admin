@@ -9,6 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useAuth } from "../context/AuthContext";
+import Logoutbox from "../pages/Logoutbox";
 
 const navItems = [
   { label: "Dashboard", icon: ICONS.dashboard, path: "/dashboard" },
@@ -25,7 +26,6 @@ export default function DashboardLayout() {
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const initials = user?.name
     ?.split(" ")
@@ -109,21 +109,20 @@ export default function DashboardLayout() {
         </div>
 
         {/* Bottom — New Reservation + Logout */}
-        <div className="px-2 pb-4 space-y-1 border-t border-zinc-100 pt-3">
-          {!collapsed && (
-            <button className="w-full flex items-center justify-center gap-2 px-3 py-2.5  font-semibold bg-primary text-white hover:bg-primary/80 transition">
-              <span>+ New Reservation</span>
-            </button>
-          )}
-          <button
-            onClick={handleLogout}
-            title={collapsed ? "Logout" : undefined}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg  font-medium text-zinc-500 hover:bg-primary/20 hover:text-primary transition"
-          >
-            <Icon icon={ICONS.logout} width={18} className="shrink-0" />
-            {!collapsed && <span>Logout</span>}
-          </button>
-        </div>
+<div className="px-2 pb-4 space-y-1 border-t border-zinc-100 pt-3">
+  {!collapsed && (
+    <button
+      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 font-semibold bg-primary text-white hover:bg-primary/80 transition"
+    >
+      <span>+ New Reservation</span>
+    </button>
+  )}
+
+  <Logoutbox
+  collapsed={collapsed}
+  onLogout={handleLogout}
+/>
+</div>
       </aside>
 
       {/* ── Main Content ──────────────────────────────────────── */}
@@ -216,60 +215,16 @@ export default function DashboardLayout() {
 
                   <div className="my-1 border-t border-zinc-100" />
 
-                  {/* Logout */}
-                  <button
-                    onClick={() => setLogoutOpen(true)}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-primary hover:bg-primary/20 transition"
-                  >
-                    <Icon
-                      icon={ICONS.logout}
-                      width={16}
-                      className="text-primary"
-                    />
-                    Logout
-                  </button>
+                <Logoutbox
+  collapsed={collapsed}
+  onLogout={handleLogout}
+/>
                 </div>
               </PopoverContent>
             </Popover>
           </div>
 
-          {/* Logout Confirmation Dialog */}
-          {logoutOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-              <div className="w-80 bg-white shadow-xl p-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 mx-auto mb-4">
-                  <Icon
-                    icon={ICONS.logout}
-                    width={22}
-                    className="text-primary"
-                  />
-                </div>
-                <h3 className="text-center text-base font-semibold text-zinc-900">
-                  Confirm Logout
-                </h3>
-                <p className="text-center text-sm text-zinc-400 mt-1 mb-6">
-                  Are you sure you want to log out of your account?
-                </p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setLogoutOpen(false)}
-                    className="flex-1 border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      setLogoutOpen(false);
-                      handleLogout();
-                    }}
-                    className="flex-1 bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary/80 transition"
-                  >
-                    Logout
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+         
         </header>
 
         <div className="flex-1 overflow-auto p-6">
