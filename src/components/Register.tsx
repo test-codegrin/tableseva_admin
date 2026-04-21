@@ -71,7 +71,7 @@ export default function Register() {
             </h2>
           </CardHeader>
 
-          <CardContent className="px-0 py-0 space-y-4 lg:space-y-6">
+          <CardContent className=" space-y-4 lg:space-y-6">
 
             {/* Restaurant Name */}
             <Input
