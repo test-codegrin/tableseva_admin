@@ -23,6 +23,7 @@ export const ICONS = {
   account:          "mdi:account",
   moon:             "stash:moon-solid",
   question:         "mdi:help-circle-outline",
+  setting:          "lets-icons:setting-line",
 
   // ─── Coming Soon ─────────────────────────────────────────────────
   rocketLaunch:     "mdi:rocket-launch-outline",
