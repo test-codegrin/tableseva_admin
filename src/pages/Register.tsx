@@ -60,7 +60,7 @@ export default function Register() {
 
       {/* Right — form */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 overflow-y-auto">
-        <div className="w-full max-w-xl py-3 lg:py-6">
+        <div className="w-full max-w-md py-3 lg:py-6">
 
           <CardHeader className="flex flex-col items-center px-0 pt-0 pb-3 lg:pb-6">
             <div className="mb-2 lg:mb-3 flex h-8 w-8 lg:h-10 lg:w-10 items-center justify-center">
@@ -153,6 +153,7 @@ export default function Register() {
               <Button
                 variant={"link"}
                 onClick={() => navigate("/login")}
+                className="px-0"
               >
                 Login here
               </Button>

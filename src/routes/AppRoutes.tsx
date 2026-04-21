@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import RegisterPage from "../pages/RegisterPage";
-import Login from "../components/Login";
+import Login from "../pages/Login";
 import ProtectedRoute from "../components/auth/ProtectedRoute";
 import PublicOnlyRoute from "../components/auth/PublicOnlyRoute";
 import DashboardHome from "../pages/DashboardHome";
@@ -12,6 +11,7 @@ import Payments from "../pages/Payments";
 import LiveOrders from "../pages/LiveOrders";
 import DashboardLayout from "../layout/DashboardLayout";
 import ProfilePage from "../pages/ProfilePage";
+import Register from "@/pages/Register";
 
 export default function AppRoutes() {
   return (
@@ -22,7 +22,7 @@ export default function AppRoutes() {
           path="/register"
           element={
             <PublicOnlyRoute>
-              <RegisterPage />
+              <Register />
             </PublicOnlyRoute>
           }
         />

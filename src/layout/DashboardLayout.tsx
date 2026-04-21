@@ -25,7 +25,7 @@ export default function DashboardLayout() {
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-const [logoutOpen, setLogoutOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const initials = user?.name
     ?.split(" ")
@@ -38,7 +38,6 @@ const [logoutOpen, setLogoutOpen] = useState(false);
     logout();
     navigate("/login", { replace: true });
   };
-  
 
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50">
@@ -143,94 +142,134 @@ const [logoutOpen, setLogoutOpen] = useState(false);
               />
             </button>
           </div>
-<div className="flex items-center gap-3">
-  <Icon icon={ICONS.question} width={18} className="text-black/50" />
+          <div className="flex items-center gap-3">
+            <Icon icon={ICONS.question} width={18} className="text-black/50" />
 
-  <Popover>
-    <PopoverTrigger asChild>
-      <button className="flex items-center gap-2" title="Open profile">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary">
-          {user?.avatar_url ? (
-            <img src={user.avatar_url} alt={user.name} className="h-full w-full rounded-full object-cover" />
-          ) : (
-            <span className=" font-semibold">{initials || "A"}</span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="flex items-center gap-2"
+                  title="Open profile"
+                >
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary">
+                    {user?.avatar_url ? (
+                      <img
+                        src={user.avatar_url}
+                        alt={user.name}
+                        className="h-full w-full rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className=" font-semibold">{initials || "A"}</span>
+                    )}
+                  </div>
+                  <span className="hidden text-sm text-zinc-600 md:block">
+                    {user?.name || "Admin"}
+                  </span>
+                </button>
+              </PopoverTrigger>
+
+              <PopoverContent
+                align="end"
+                sideOffset={8}
+                className="w-52 p-0 overflow-hidden gap-0"
+              >
+                {/* User info header */}
+                <div className="px-4 py-3 border-b border-zinc-100">
+                  <p className="text-sm font-semibold text-zinc-900 truncate">
+                    {user?.name || "Admin"}
+                  </p>
+                  <p className="text-xs text-zinc-400 truncate">
+                    {user?.email}
+                  </p>
+                </div>
+
+                {/* Options */}
+                <div>
+                  {/* Profile */}
+                  <button
+                    onClick={() => navigate("/profile")}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition"
+                  >
+                    <Icon
+                      icon={ICONS.account}
+                      width={16}
+                      className="text-zinc-400"
+                    />
+                    Profile
+                  </button>
+
+                  {/* Settings — disabled */}
+                  <button
+                    disabled
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-300 cursor-not-allowed"
+                  >
+                    <Icon
+                      icon={ICONS.setting ?? ICONS.question}
+                      width={16}
+                      className="text-zinc-300"
+                    />
+                    Settings
+                    <span className="ml-auto bg-zinc-100 text-zinc-400 px-1.5 py-0.5">
+                      Soon
+                    </span>
+                  </button>
+
+                  <div className="my-1 border-t border-zinc-100" />
+
+                  {/* Logout */}
+                  <button
+                    onClick={() => setLogoutOpen(true)}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-primary hover:bg-primary/20 transition"
+                  >
+                    <Icon
+                      icon={ICONS.logout}
+                      width={16}
+                      className="text-primary"
+                    />
+                    Logout
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Logout Confirmation Dialog */}
+          {logoutOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+              <div className="w-80 bg-white shadow-xl p-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 mx-auto mb-4">
+                  <Icon
+                    icon={ICONS.logout}
+                    width={22}
+                    className="text-primary"
+                  />
+                </div>
+                <h3 className="text-center text-base font-semibold text-zinc-900">
+                  Confirm Logout
+                </h3>
+                <p className="text-center text-sm text-zinc-400 mt-1 mb-6">
+                  Are you sure you want to log out of your account?
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setLogoutOpen(false)}
+                    className="flex-1 border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      setLogoutOpen(false);
+                      handleLogout();
+                    }}
+                    className="flex-1 bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary/80 transition"
+                  >
+                    Logout
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
-        </div>
-        <span className="hidden text-sm text-zinc-600 md:block">{user?.name || "Admin"}</span>
-      </button>
-    </PopoverTrigger>
-
-    <PopoverContent align="end" sideOffset={8} className="w-52 p-0 overflow-hidden">
-      {/* User info header */}
-      <div className="px-4 py-3 border-b border-zinc-100">
-        <p className="text-sm font-semibold text-zinc-900 truncate">{user?.name || "Admin"}</p>
-        <p className="text-xs text-zinc-400 truncate">{user?.email}</p>
-      </div>
-
-      {/* Options */}
-      <div className="py-1">
-        {/* Profile */}
-        <button
-          onClick={() => navigate("/profile")}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition"
-        >
-          <Icon icon={ICONS.account} width={16} className="text-zinc-400" />
-          Profile
-        </button>
-
-        {/* Settings — disabled */}
-        <button
-          disabled
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-300 cursor-not-allowed"
-        >
-          <Icon icon={ICONS.setting ?? ICONS.question} width={16} className="text-zinc-300" />
-          Settings
-          <span className="ml-auto bg-zinc-100 text-zinc-400 px-1.5 py-0.5">Soon</span>
-        </button>
-
-        <div className="my-1 border-t border-zinc-100" />
-
-        {/* Logout */}
-        <button
-          onClick={() => setLogoutOpen(true)}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-primary hover:bg-primary/20 transition"
-        >
-          <Icon icon={ICONS.logout} width={16} className="text-primary" />
-          Logout
-        </button>
-      </div>
-    </PopoverContent>
-  </Popover>
-</div>
-
-{/* Logout Confirmation Dialog */}
-{logoutOpen && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-    <div className="w-80 bg-white shadow-xl p-6">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20 mx-auto mb-4">
-        <Icon icon={ICONS.logout} width={22} className="text-primary" />
-      </div>
-      <h3 className="text-center text-base font-semibold text-zinc-900">Confirm Logout</h3>
-      <p className="text-center text-sm text-zinc-400 mt-1 mb-6">
-        Are you sure you want to log out of your account?
-      </p>
-      <div className="flex gap-3">
-        <button
-          onClick={() => setLogoutOpen(false)}
-          className="flex-1 border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => { setLogoutOpen(false); handleLogout(); }}
-          className="flex-1 bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary/80 transition"
-        >
-          Logout
-        </button>
-      </div>
-    </div>
-  </div>
-)}
         </header>
 
         <div className="flex-1 overflow-auto p-6">

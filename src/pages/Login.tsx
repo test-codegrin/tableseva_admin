@@ -58,8 +58,8 @@ export default function Login() {
     <div className="flex h-screen overflow-hidden">
       {/* Left — form */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 sm:px-10 overflow-y-auto">
-        <div className="w-full max-w-sm py-6">
-          <CardHeader className="flex flex-col items-center px-0 pt-0 pb-6">
+        <div className="w-full max-w-md py-3 lg:py-6 space-y-6">
+          <CardHeader className="flex flex-col items-center pb-6">
             <div className="mb-3 flex h-10 w-10 items-center justify-center">
               <img
                 src="/auth/logo.png"
@@ -72,7 +72,7 @@ export default function Login() {
             </h2>
           </CardHeader>
 
-          <CardContent className="px-0 py-0 space-y-3">
+          <CardContent className="px-0 py-0 space-y-4 lg:space-y-6">
             {/* Email */}
             <div className="relative flex items-center">
               <Input
@@ -114,7 +114,8 @@ export default function Login() {
             {/* Submit */}
             <div className="pt-1">
               <Button
-                className="w-full p-8"
+                className="w-full"
+                size={"lg"}
                 onClick={handleSubmit}
                 disabled={loading}
               >
@@ -130,11 +131,12 @@ export default function Login() {
             </div>
           </CardContent>
 
-          <CardFooter className="justify-center px-0 py-5">
+          <CardFooter className="justify-center">
             <p className="text-sm text-black/50">
               Don't have an account?{" "}
               <Button
                 variant={"link"}
+                className="px-0"
                 onClick={() => navigate("/register")}
               >
                 Sign Up
