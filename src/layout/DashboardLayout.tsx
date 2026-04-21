@@ -129,7 +129,7 @@ export default function DashboardLayout() {
       {/* ── Main Content ──────────────────────────────────────── */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Bar */}
-        <header className="bg-white/80 border-b border-zinc-100 px-6 py-8 flex items-center justify-between shrink-0">
+        <header className="bg-white/80 border-b border-zinc-100 p-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setCollapsed(!collapsed)}
