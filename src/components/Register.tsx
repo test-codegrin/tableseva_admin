@@ -5,6 +5,7 @@ import { registerApi } from "../api/authApi";
 import type { RegisterPayload } from "../types/dataTypes";
 import { Icon, ICONS } from "../config/icons";
 import { useNavigate } from "react-router-dom";
+import { isAxiosError } from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CardContent, CardHeader, CardFooter } from "@/components/ui/card";
@@ -39,8 +40,10 @@ export default function Register() {
       toast.success("Account Created", { description: "Admin account created successfully! Please sign in." });
       setFormData(emptyForm);
       setTimeout(() => navigate("/login"), 1000);
-    } catch (error: any) {
-      const message = error?.response?.data?.message || "Registration Failed";
+    } catch (error: unknown) {
+      const message = isAxiosError<{ message?: string }>(error)
+        ? error.response?.data?.message || "Registration Failed"
+        : "Registration Failed";
       toast.error("Registration Failed", { description: message });
     } finally {
       setLoading(false);

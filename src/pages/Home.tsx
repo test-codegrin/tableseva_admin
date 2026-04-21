@@ -6,7 +6,7 @@ export default function Home() {
 
   useEffect(() => {
     navigate("/register")
-  }, [])
+  }, [navigate])
 
   return null
 }

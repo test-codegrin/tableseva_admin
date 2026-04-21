@@ -26,9 +26,16 @@ import { toast } from "sonner";
 
 const API_BASE = "https://1n2nng7m-3000.inc1.devtunnels.ms";
 
+interface CategoryItem {
+  categories_id: number;
+  name: string;
+  description: string;
+  status: "active" | "inactive";
+}
+
 export default function CategoryManagement() {
   const [isOpen, setIsOpen] = useState(false);
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({
@@ -65,7 +72,7 @@ export default function CategoryManagement() {
     setIsOpen(true);
   };
 
-  const openEdit = (cat: any) => {
+  const openEdit = (cat: CategoryItem) => {
     setEditingId(cat.categories_id);
     setForm({
       name: cat.name,
@@ -166,7 +173,7 @@ export default function CategoryManagement() {
           </TableHeader>
 
           <TableBody>
-            {categories.map((cat: any) => (
+            {categories.map((cat) => (
               <TableRow key={cat.categories_id}>
                 <TableCell>#{cat.categories_id}</TableCell>
                 <TableCell>{cat.name}</TableCell>

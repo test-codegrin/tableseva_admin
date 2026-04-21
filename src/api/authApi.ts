@@ -1,5 +1,10 @@
 import api from "./apiClient"
-import type { RegisterPayload } from "../types/dataTypes"
+import type {
+  LoginPayload,
+  LoginResponse,
+  MeResponse,
+  RegisterPayload,
+} from "../types/dataTypes"
 
 // Register
 export const registerApi = async (data: RegisterPayload) => {
@@ -8,8 +13,33 @@ export const registerApi = async (data: RegisterPayload) => {
 }
 
 // Login
-export const loginApi = async (data: { email: string; password: string }) => {
-  const response = await api.post("/vendor/login", data)
-  return response.data
+export const loginApi = async (data: LoginPayload): Promise<LoginResponse> => {
+  const endpoints = ["/vendor/login", "/user/login"];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await api.post<LoginResponse>(endpoint, data);
+      return response.data;
+    } catch {
+      // Try next endpoint variant.
+    }
+  }
+
+  throw new Error("Login endpoint not available");
 }
 
+// Authenticated vendor profile
+export const getMeApi = async (): Promise<MeResponse> => {
+  const endpoints = ["/vendor/me", "/user/me"];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await api.get<MeResponse>(endpoint);
+      return response.data;
+    } catch {
+      // Try next endpoint variant.
+    }
+  }
+
+  throw new Error("Profile endpoint not available");
+}

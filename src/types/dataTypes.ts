@@ -5,6 +5,32 @@ export interface RegisterPayload {
   password: string
   phone: string
 }
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  message: string;
+  token: string;
+}
+
+export interface VendorProfile {
+  vendor_id: number;
+  name: string;
+  email: string;
+  phone: string;
+  subdomain: string;
+  razorpay_key_id?: string;
+  avatar_url?: string;
+}
+
+export interface MeResponse {
+  vendor: VendorProfile;
+}
+
 export interface Category {
   categories_id: number;
   name: string;

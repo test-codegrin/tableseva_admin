@@ -3,24 +3,35 @@
 import { useState } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import { Icon, ICONS } from "../config/icons";
+import { useAuth } from "../context/AuthContext";
 
 const navItems = [
   { label: "Dashboard", icon: ICONS.dashboard, path: "/dashboard" },
-  { label: "Category Management", icon: ICONS.forkspoon, path: "/category" },
-  { label: "Table Management", icon: ICONS.tableMgmt, path: "/tables" },
-  { label: "QR Code Generation", icon: ICONS.qrCode, path: "/qr-code" },
-  { label: "Stock / Inventory", icon: ICONS.inventory, path: "/inventory" },
-  { label: "Payments", icon: ICONS.payments, path: "/payments" },
-  { label: "Live Orders Tracking", icon: ICONS.liveOrders, path: "/orders" },
+  { label: "Category Management", icon: ICONS.forkspoon, path: "/dashboard/category" },
+  { label: "Table Management", icon: ICONS.tableMgmt, path: "/dashboard/tables" },
+  { label: "QR Code Generation", icon: ICONS.qrCode, path: "/dashboard/qr-code" },
+  { label: "Stock / Inventory", icon: ICONS.inventory, path: "/dashboard/inventory" },
+  { label: "Payments", icon: ICONS.payments, path: "/dashboard/payments" },
+  { label: "Live Orders Tracking", icon: ICONS.liveOrders, path: "/dashboard/orders" },
 ];
 
 export default function DashboardLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
 
-  const activeItem =
-    navItems.find((item) => item.path === pathname) ?? navItems[0];
+  const initials = user?.name
+    ?.split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -38,7 +49,7 @@ export default function DashboardLayout() {
         {/* Nav Items */}
         <nav className="flex-1 py-3 space-y-5 px-2 overflow-y-auto">
           {navItems.map((item) => {
-            const isActive = pathname === item.path || (item.path === "/dashboard" && pathname === "/");
+            const isActive = pathname === item.path;
             return (
               <button
                 key={item.label}
@@ -61,6 +72,38 @@ export default function DashboardLayout() {
           })}
         </nav>
 
+        {/* Profile section */}
+        <div className="mx-2 mb-2 rounded-xl border border-gray-200 bg-white p-2">
+          <button
+            onClick={() => navigate("/dashboard/profile")}
+            className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition ${
+              pathname === "/dashboard/profile"
+                ? "bg-[#CC543A]/10"
+                : "hover:bg-gray-50"
+            }`}
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#CC543A]/10 text-[#CC543A]">
+              {user?.avatar_url ? (
+                <img
+                  src={user.avatar_url}
+                  alt={user.name}
+                  className="h-full w-full rounded-full object-cover"
+                />
+              ) : (
+                <span className="text-xs font-semibold">{initials || "A"}</span>
+              )}
+            </div>
+            {!collapsed && (
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-gray-900">
+                  {user?.name || "Admin"}
+                </p>
+                <p className="truncate text-xs text-gray-500">{user?.email}</p>
+              </div>
+            )}
+          </button>
+        </div>
+
         {/* Bottom — New Reservation + Logout */}
         <div className="px-2 pb-4 space-y-1 border-t border-gray-100 pt-3">
           {!collapsed && (
@@ -69,7 +112,7 @@ export default function DashboardLayout() {
             </button>
           )}
           <button
-            onClick={() => navigate("/login")}
+            onClick={handleLogout}
             title={collapsed ? "Logout" : undefined}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-500 transition"
           >
@@ -102,9 +145,26 @@ export default function DashboardLayout() {
             <Icon icon={ICONS.moon} width={18} className="text-black/50" />
             <Icon icon={ICONS.question} width={18} className="text-black/50" />
 
-            <div className="w-8 h-8 rounded-full bg-[#CC543A]/10 flex items-center justify-center">
-              <Icon icon={ICONS.account} width={18} />
-            </div>
+            <button
+              onClick={() => navigate("/dashboard/profile")}
+              className="flex items-center gap-2"
+              title="Open profile"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#CC543A]/10 text-[#CC543A]">
+                {user?.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt={user.name}
+                    className="h-full w-full rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="text-[11px] font-semibold">{initials || "A"}</span>
+                )}
+              </div>
+              <span className="hidden text-sm text-gray-600 md:block">
+                {user?.name || "Admin"}
+              </span>
+            </button>
           </div>
         </header>
 

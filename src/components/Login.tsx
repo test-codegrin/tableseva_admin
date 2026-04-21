@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { loginApi } from "../api/authApi";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Icon, ICONS } from "../config/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CardContent, CardHeader, CardFooter } from "@/components/ui/card";
 import { toast } from "sonner";
+import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -26,11 +28,18 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const res = await loginApi(formData);
+      await login(formData);
       toast.success("Login Successful", { description: "Welcome back! Redirecting..." });
-      setTimeout(() => navigate("/dashboard"), 1000);
-    } catch (error: any) {
-      const message = error?.response?.data?.message || "Login Failed. Please try again.";
+      const redirectTo = (location.state as { from?: { pathname?: string } })?.from?.pathname || "/dashboard";
+      setTimeout(() => navigate(redirectTo, { replace: true }), 800);
+    } catch (error: unknown) {
+      const message =
+        typeof error === "object" &&
+        error &&
+        "response" in error &&
+        typeof (error as { response?: { data?: { message?: string } } }).response?.data?.message === "string"
+          ? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+          : "Login Failed. Please try again.";
       toast.error("Login Failed", { description: message });
     } finally {
       setLoading(false);
