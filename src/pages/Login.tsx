@@ -82,7 +82,6 @@ export default function Login() {
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleChange("email", e.target.value)}
-                
               />
             </div>
 
@@ -95,25 +94,27 @@ export default function Login() {
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={(e) => handleChange("password", e.target.value)}
-                
               />
 
-              <button
+              <Button
                 aria-label={showPassword ? "Hide password" : "Show password"}
                 title={showPassword ? "Hide password" : "Show password"}
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2/3 -translate-y-2/3 text-black/50 hover:text-zinc-600 transition-colors"
+                variant="ghost"
+                size="icon-sm"
+                className="absolute right-2 top-2/3 -translate-y-2/3 text-black/50 hover:text-zinc-600"
               >
                 <Icon
                   icon={showPassword ? ICONS.eyeOn : ICONS.eyeOff}
                   width={16}
                 />
-              </button>
+              </Button>
             </div>
             {/* Submit */}
             <div className="pt-1">
               <Button
+                variant="primary"
                 className="w-full"
                 size={"lg"}
                 onClick={handleSubmit}

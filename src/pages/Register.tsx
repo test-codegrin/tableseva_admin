@@ -71,7 +71,7 @@ export default function Register() {
             </h2>
           </CardHeader>
 
-          <CardContent className=" space-y-4 lg:space-y-6">
+          <CardContent className="space-y-4 lg:space-y-6">
 
             {/* Restaurant Name */}
             <Input
@@ -100,7 +100,7 @@ export default function Register() {
               value={formData.email}
               onChange={(e) => handleChange("email", e.target.value)}
             />
-             {/* Email */}
+            {/* Phone */}
             <Input
               label="Phone Number"
               id="phone"
@@ -119,20 +119,25 @@ export default function Register() {
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={(e) => handleChange("password", e.target.value)}
-                />
-              <button
+              />
+              <Button
                 title={showPassword ? "Hide password" : "Show password"}
+                type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2/3 -translate-y-2/3 text-black/50 hover:text-zinc-600 transition-colors"
+                variant="ghost"
+                size="icon-sm"
+                className="absolute right-2 top-2/3 -translate-y-2/3 text-black/50 hover:text-zinc-600"
               >
                 <Icon icon={showPassword ? ICONS.eyeOn : ICONS.eyeOff} width={16} />
-              </button>
+              </Button>
             </div>
 
             {/* Submit */}
             <div className="pt-1">
               <Button
-                className="w-full p-5 text-base lg:p-8"
+                variant="primary"
+                size="lg"
+                className="w-full"
                 onClick={handleSubmit}
                 disabled={loading}
               >
@@ -148,7 +153,7 @@ export default function Register() {
           </CardContent>
 
           <CardFooter className="justify-center px-0 py-3 lg:py-5">
-            <p className="text-sm lg: text-black/50">
+            <p className="text-sm text-black/50">
               Already have an account?{" "}
               <Button
                 variant={"link"}

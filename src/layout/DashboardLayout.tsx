@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { useAuth } from "../context/AuthContext";
 import Logoutbox from "../pages/Logoutbox";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
   { label: "Dashboard", icon: ICONS.dashboard, path: "/dashboard" },
@@ -44,7 +45,7 @@ export default function DashboardLayout() {
       {/* ── Sidebar ───────────────────────────────────────────── */}
       <aside
         className={`${
-          collapsed ? "w-16" : "w-76"
+          collapsed ? "w-15" : "w-65"
         } transition-all duration-300 bg-[#F7F7F7] border-r border-zinc-100 flex flex-col shrink-0`}
       >
         {/* Logo */}
@@ -57,14 +58,14 @@ export default function DashboardLayout() {
           {navItems.map((item) => {
             const isActive = pathname === item.path;
             return (
-              <button
+              <Button
                 key={item.label}
+                type="button"
                 onClick={() => navigate(item.path)}
                 title={collapsed ? item.label : undefined}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm  transition-all duration-150 ${
-                  isActive
-                    ? "bg-primary text-white"
-                    : "text-black hover:bg-zinc-200 hover:text-zinc-900"
+                variant={isActive ? "primary" : "ghost"}
+                className={`w-full justify-start gap-3 px-3 ${
+                  isActive ? "text-white" : "text-black hover:bg-zinc-200 hover:text-zinc-900"
                 }`}
               >
                 <Icon
@@ -73,16 +74,18 @@ export default function DashboardLayout() {
                   className={`shrink-0 ${isActive ? "text-white" : "text-black"}`}
                 />
                 {!collapsed && <span className="truncate">{item.label}</span>}
-              </button>
+              </Button>
             );
           })}
         </nav>
 
         {/* Profile section */}
-        <div className="mx-2 mb-2 rounded-xl border border-zinc-200 bg-white p-2">
-          <button
+        <div>
+          <Button
+            type="button"
+            variant="ghost"
             onClick={() => navigate("/profile")}
-            className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition ${
+            className={`h-auto w-full justify-start gap-3 px-2 py-2 text-left ${
               pathname === "/profile" ? "bg-primary/20" : "hover:bg-zinc-50"
             }`}
           >
@@ -105,15 +108,15 @@ export default function DashboardLayout() {
                 <p className="truncate text-xs text-zinc-500">{user?.email}</p>
               </div>
             )}
-          </button>
+          </Button>
         </div>
 
         {/* Bottom — New Reservation + Logout */}
         <div className="px-2 pb-4 space-y-1 border-t border-zinc-100 pt-3">
           {!collapsed && (
-            <button className="w-full flex items-center justify-center gap-2 px-3 py-2.5 font-semibold bg-primary text-white hover:bg-primary/80 transition">
+            <Button variant="primary" className="w-full gap-2 px-3 font-semibold">
               <span>+ New Reservation</span>
-            </button>
+            </Button>
           )}
 
           <Logoutbox collapsed={collapsed} onLogout={handleLogout} />
@@ -125,23 +128,26 @@ export default function DashboardLayout() {
         {/* Top Bar */}
         <header className="bg-white/80 border-b border-zinc-100 p-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setCollapsed(!collapsed)}
-              className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 transition"
+              className="text-zinc-400"
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               <Icon
                 icon={collapsed ? ICONS.chevronRight : ICONS.chevronLeft}
                 width={18}
               />
-            </button>
+            </Button>
           </div>
           <div className="flex items-center gap-3">
-            <Icon icon={ICONS.question} width={18} className="text-black/50" />
 
             <Popover>
               <PopoverTrigger asChild>
-                <button
+                <Button
+                  variant="ghost"
                   className="flex items-center gap-2"
                   title="Open profile"
                 >
@@ -159,7 +165,7 @@ export default function DashboardLayout() {
                   <span className="hidden text-sm text-zinc-600 md:block">
                     {user?.name || "Admin"}
                   </span>
-                </button>
+                </Button>
               </PopoverTrigger>
 
               <PopoverContent
@@ -180,9 +186,10 @@ export default function DashboardLayout() {
                 {/* Options */}
                 <div>
                   {/* Profile */}
-                  <button
+                  <Button
+                    type="button"
+                    variant="ghost"
                     onClick={() => navigate("/profile")}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition"
                   >
                     <Icon
                       icon={ICONS.account}
@@ -190,12 +197,14 @@ export default function DashboardLayout() {
                       className="text-zinc-400"
                     />
                     Profile
-                  </button>
+                  </Button>
 
                   {/* Settings — disabled */}
-                  <button
+                  <Button
+                    type="button"
+                    variant="ghost"
                     disabled
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-300 cursor-not-allowed"
+                    className="w-full justify-start gap-3 "
                   >
                     <Icon
                       icon={ICONS.setting ?? ICONS.question}
@@ -203,10 +212,10 @@ export default function DashboardLayout() {
                       className="text-zinc-300"
                     />
                     Settings
-                    <span className="ml-auto bg-zinc-100 text-zinc-400 px-1.5 py-0.5">
+                    <span className="ml-auto ">
                       Soon
                     </span>
-                  </button>
+                  </Button>
 
                   <div className="my-1 border-t border-zinc-100" />
 

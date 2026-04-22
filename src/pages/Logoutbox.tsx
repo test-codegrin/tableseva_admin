@@ -9,6 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Icon, ICONS } from "../config/icons";
 
 type Props = {
@@ -22,15 +23,16 @@ export default function Logoutbox({ collapsed = false, onLogout }: Props) {
   return (
     <>
       {/* Trigger button */}
-      <button
+      <Button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Logout"
-        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-primary hover:bg-primary/20 transition"
+        variant="ghost"
+        className="w-full justify-start gap-3 px-3 text-primary hover:bg-primary/20"
       >
         <Icon icon={ICONS.logout} width={16} className="shrink-0" />
         {!collapsed && <span>Logout</span>}
-      </button>
+      </Button>
 
       {/* Centered Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -48,20 +50,22 @@ export default function Logoutbox({ collapsed = false, onLogout }: Props) {
           </DialogHeader>
 
           <DialogFooter className="flex-row gap-3 mt-2">
-            <button
+            <Button
               type="button"
               onClick={() => setOpen(false)}
-              className="flex-1 border border-zinc-200 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
+              variant="ghost"
+              className="flex-1 border-zinc-200 text-zinc-700 hover:bg-zinc-50"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => { setOpen(false); onLogout(); }}
-              className="flex-1 bg-primary py-2.5 text-sm font-medium text-white hover:bg-primary/80 transition"
+              variant="primary"
+              className="flex-1"
             >
               Logout
-            </button>
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
