@@ -190,6 +190,7 @@ export default function DashboardLayout() {
                     type="button"
                     variant="ghost"
                     onClick={() => navigate("/profile")}
+                    className="w-full justify-start"
                   >
                     <Icon
                       icon={ICONS.account}

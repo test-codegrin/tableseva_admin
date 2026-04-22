@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { updateVendorProfileApi } from "../api/authApi";
+import { updateRazorpayKeysApi } from "../api/paymentApi";
 import { Input } from "../components/ui/input";
 import { useAuth } from "../context/AuthContext";
 import { Icon, ICONS } from "../config/icons";
@@ -14,6 +15,13 @@ type ProfileForm = {
 
 type FormErrors = Partial<Record<keyof ProfileForm, string>>;
 
+type RazorpayForm = {
+  razorpay_key_id: string;
+  razorpay_key_secret: string;
+};
+
+type RazorpayFormErrors = Partial<Record<keyof RazorpayForm, string>>;
+
 const tabs = [
   { key: "account", label: "Account Details", icon: ICONS.account },
   { key: "payment", label: "Payment Methods", icon: ICONS.payments },
@@ -22,14 +30,21 @@ const tabs = [
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState("account");
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isEditingAccount, setIsEditingAccount] = useState(false);
+  const [isSavingAccount, setIsSavingAccount] = useState(false);
+  const [isEditingPayment, setIsEditingPayment] = useState(false);
+  const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [paymentErrors, setPaymentErrors] = useState<RazorpayFormErrors>({});
   const [form, setForm] = useState<ProfileForm>({
     name: "",
     email: "",
     phone: "",
     subdomain: "",
+  });
+  const [razorpayForm, setRazorpayForm] = useState<RazorpayForm>({
+    razorpay_key_id: "",
+    razorpay_key_secret: "",
   });
 
   useEffect(() => {
@@ -39,6 +54,10 @@ export default function ProfilePage() {
       email: user.email,
       phone: user.phone,
       subdomain: user.subdomain,
+    });
+    setRazorpayForm({
+      razorpay_key_id: user.razorpay_key_id || "",
+      razorpay_key_secret: "",
     });
   }, [user]);
 
@@ -68,10 +87,35 @@ export default function ProfilePage() {
     setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
+  const validateRazorpayForm = (): RazorpayFormErrors => {
+    const e: RazorpayFormErrors = {};
+    if (!/\S/.test(razorpayForm.razorpay_key_id)) {
+      e.razorpay_key_id = "Razorpay key ID is required";
+    }
+    if (!/\S/.test(razorpayForm.razorpay_key_secret)) {
+      e.razorpay_key_secret = "Razorpay secret key is required";
+    }
+    return e;
+  };
+
+  const handleRazorpayChange = (field: keyof RazorpayForm, value: string) => {
+    setRazorpayForm((prev) => ({ ...prev, [field]: value }));
+    setPaymentErrors((prev) => ({ ...prev, [field]: undefined }));
+  };
+
   const handleCancel = () => {
-    setIsEditing(false);
+    setIsEditingAccount(false);
     setErrors({});
     setForm({ name: user.name, email: user.email, phone: user.phone, subdomain: user.subdomain });
+  };
+
+  const handlePaymentCancel = () => {
+    setIsEditingPayment(false);
+    setPaymentErrors({});
+    setRazorpayForm({
+      razorpay_key_id: user.razorpay_key_id || "",
+      razorpay_key_secret: "",
+    });
   };
 
   const handleSave = async () => {
@@ -81,17 +125,43 @@ export default function ProfilePage() {
       toast.error("Validation failed", { description: "Please fix highlighted fields before saving." });
       return;
     }
-    setIsSaving(true);
+    setIsSavingAccount(true);
     try {
       await updateVendorProfileApi({ name: form.name, email: form.email, phone: form.phone, subdomain: form.subdomain });
       await refreshUser();
-      setIsEditing(false);
+      setIsEditingAccount(false);
       toast.success("Profile updated", { description: "Your changes were saved successfully." });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not update profile.";
       toast.error("Update failed", { description: message });
     } finally {
-      setIsSaving(false);
+      setIsSavingAccount(false);
+    }
+  };
+
+  const handlePaymentSave = async () => {
+    const validationErrors = validateRazorpayForm();
+    setPaymentErrors(validationErrors);
+    if (Object.keys(validationErrors).length > 0) {
+      toast.error("Validation failed", { description: "Please enter both Razorpay fields before saving." });
+      return;
+    }
+
+    setIsSavingPayment(true);
+    try {
+      await updateRazorpayKeysApi({
+        razorpay_key_id: razorpayForm.razorpay_key_id.trim(),
+        razorpay_key_secret: razorpayForm.razorpay_key_secret,
+      });
+      await refreshUser();
+      setIsEditingPayment(false);
+      setRazorpayForm((prev) => ({ ...prev, razorpay_key_secret: "" }));
+      toast.success("Razorpay updated", { description: "Razorpay keys updated successfully." });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not update Razorpay keys.";
+      toast.error("Update failed", { description: message });
+    } finally {
+      setIsSavingPayment(false);
     }
   };
 
@@ -133,7 +203,7 @@ export default function ProfilePage() {
                 className={`flex items-center gap-2.5 px-3 py-2.5  text-sm font-medium transition text-left w-full ${
                   activeTab === tab.key
                     ? "border-l-4 border-[#CC543A] bg-[#CC543A]/5 text-primary"
-                    : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800"
+                    : "border-l-4 border-transparent text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800"
                 }`}
               >
                 <Icon icon={tab.icon} width={16} className="shrink-0" />
@@ -168,7 +238,7 @@ export default function ProfilePage() {
                   label="Restaurant Name *"
                   value={form.name}
                   onChange={(e) => handleChange("name", e.target.value)}
-                  disabled={!isEditing || isSaving}
+                  disabled={!isEditingAccount || isSavingAccount}
                   error={errors.name}
                 />
                 <Input
@@ -176,21 +246,21 @@ export default function ProfilePage() {
                   label="E-Mail *"
                   value={form.email}
                   onChange={(e) => handleChange("email", e.target.value)}
-                  disabled={!isEditing || isSaving}
+                  disabled={!isEditingAccount || isSavingAccount}
                   error={errors.email}
                 />
                 <Input
                   label="Phone *"
                   value={form.phone}
                   onChange={(e) => handleChange("phone", e.target.value)}
-                  disabled={!isEditing || isSaving}
+                  disabled={!isEditingAccount || isSavingAccount}
                   error={errors.phone}
                 />
                 <Input
                   label="Subdomain *"
                   value={form.subdomain}
                   onChange={(e) => handleChange("subdomain", e.target.value)}
-                  disabled={!isEditing || isSaving}
+                  disabled={!isEditingAccount || isSavingAccount}
                   error={errors.subdomain}
                 />
               </div>
@@ -200,9 +270,19 @@ export default function ProfilePage() {
               <div className="space-y-4">
                 <Input
                   label="Razorpay Key ID"
-                  value={user.razorpay_key_id || "Not available"}
-                  disabled
-                  readOnly
+                  value={razorpayForm.razorpay_key_id}
+                  onChange={(e) => handleRazorpayChange("razorpay_key_id", e.target.value)}
+                  disabled={!isEditingPayment || isSavingPayment}
+                  error={paymentErrors.razorpay_key_id}
+                />
+                <Input
+                  type="password"
+                  label="Secret Key"
+                  placeholder="Enter Razorpay secret key"
+                  value={razorpayForm.razorpay_key_secret}
+                  onChange={(e) => handleRazorpayChange("razorpay_key_secret", e.target.value)}
+                  disabled={!isEditingPayment || isSavingPayment}
+                  error={paymentErrors.razorpay_key_secret}
                 />
               </div>
             )}
@@ -210,33 +290,61 @@ export default function ProfilePage() {
 
           {/* Footer actions */}
           <div className="px-6 py-4 border-t border-zinc-100 flex justify-end gap-2">
-            {isEditing ? (
+            {activeTab === "account" && (isEditingAccount ? (
               <>
                 <button
                   onClick={handleCancel}
-                  disabled={isSaving}
+                  disabled={isSavingAccount}
                   className="px-4 py-2  border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={isSaving}
+                  disabled={isSavingAccount}
                   className="flex items-center gap-2 px-5 py-2  bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition disabled:opacity-50"
                 >
                   <Icon icon={ICONS.account} width={14} />
-                  {isSaving ? "Saving..." : "Update"}
+                  {isSavingAccount ? "Saving..." : "Update"}
                 </button>
               </>
             ) : (
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={() => setIsEditingAccount(true)}
                 className="flex items-center gap-2 px-5 py-2 bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition"
               >
                 <Icon icon={ICONS.account} width={14} />
                 Edit Profile
               </button>
-            )}
+            ))}
+
+            {activeTab === "payment" && (isEditingPayment ? (
+              <>
+                <button
+                  onClick={handlePaymentCancel}
+                  disabled={isSavingPayment}
+                  className="px-4 py-2 border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handlePaymentSave}
+                  disabled={isSavingPayment}
+                  className="flex items-center gap-2 px-5 py-2 bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition disabled:opacity-50"
+                >
+                  <Icon icon={ICONS.payments} width={14} />
+                  {isSavingPayment ? "Saving..." : "Update Keys"}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setIsEditingPayment(true)}
+                className="flex items-center gap-2 px-5 py-2 bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition"
+              >
+                <Icon icon={ICONS.payments} width={14} />
+                Edit Razorpay
+              </button>
+            ))}
           </div>
 
         </div>

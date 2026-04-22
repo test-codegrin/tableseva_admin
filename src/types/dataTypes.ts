@@ -43,6 +43,15 @@ export interface UpdateVendorProfileResponse {
   message: string;
 }
 
+export interface UpdateRazorpayKeysPayload {
+  razorpay_key_id: string;
+  razorpay_key_secret: string;
+}
+
+export interface UpdateRazorpayKeysResponse {
+  message: string;
+}
+
 export interface Category {
   categories_id: number;
   name: string;
