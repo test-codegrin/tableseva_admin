@@ -133,20 +133,20 @@ export default function ProfilePage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-zinc-800">Profile</h1>
-        <div className="flex gap-2">
-          {isEditing ? (
-            <>
-              <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
-                Cancel
-              </Button>
-              <Button onClick={handleSave} disabled={isSaving}>
-                {isSaving ? "Saving..." : "Save Changes"}
-              </Button>
-            </>
-          ) : (
+        {isEditing ? (
+          <div key="edit-actions" className="flex gap-2">
+            <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        ) : (
+          <div key="view-actions" className="flex gap-2">
             <Button onClick={handleEdit}>Edit</Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <div className="border border-zinc-200 bg-white p-6 shadow-sm">
