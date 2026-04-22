@@ -99,7 +99,7 @@ export default function PaymentMethodPage() {
             disabled={!isEditing || isSaving}
             error={errors.razorpay_key_id}
           />
-          {/* <Input
+          <Input
             type="password"
             label="Secret Key"
             placeholder="Enter Razorpay secret key"
@@ -107,7 +107,7 @@ export default function PaymentMethodPage() {
             onChange={(e) => handleChange("razorpay_key_secret", e.target.value)}
             disabled={!isEditing || isSaving}
             error={errors.razorpay_key_secret}
-          /> */}
+          />
         </div>
       </div>
 
