@@ -2,6 +2,7 @@ import { Icon, ICONS } from "../config/icons";
 import { useAuth } from "../context/AuthContext";
 import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 import { Separator } from "@/components/ui/separator";
+import Loader from "@/pages/Loader";
 
 const tabs = [
   { key: "account", label: "Profile", icon: ICONS.account, path: "/profile/account" },
@@ -16,7 +17,7 @@ export default function ProfileLayout() {
     return <Navigate to="/profile/account" replace />;
   }
 
-  if (!user) return null;
+  if (!user) return <Loader message="Loading profile..." />;
 
   const activeTab = tabs.find((t) => location.pathname.startsWith(t.path));
 

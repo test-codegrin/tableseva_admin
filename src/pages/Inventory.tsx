@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { getCategories } from "@/services/categoryService";
+import Loader from "@/pages/Loader";
 import {
   createItem,
   deleteItem,
@@ -29,9 +30,7 @@ import {
   getCategoryItems,
   getItems,
   patchItemStatus,
-  type OptionGroupUpdateMode,
   updateItem,
-  updateItemByCategory,
 } from "@/services/itemService";
 import type { Category, Item, ItemOption, ItemOptionGroup, StatusFlag } from "@/types/admin";
 
@@ -44,7 +43,7 @@ type ItemForm = {
   price: string;
   status: StatusFlag;
   photo: File | null;
-  optionMode: OptionGroupUpdateMode;
+  existing_photo_url: string | null;
   option_groups: ItemOptionGroup[];
 };
 
@@ -55,9 +54,9 @@ const emptyOption = (): ItemOption => ({
 
 const emptyOptionGroup = (): ItemOptionGroup => ({
   name: "",
-  required: false,
-  min_select: 0,
-  max_select: 1,
+  multiple_select: 0,
+  is_required: 0,
+  status: 1,
   options: [emptyOption()],
 });
 
@@ -68,7 +67,7 @@ const createInitialForm = (): ItemForm => ({
   price: "",
   status: 1,
   photo: null,
-  optionMode: "replace",
+  existing_photo_url: null,
   option_groups: [emptyOptionGroup()],
 });
 
@@ -79,14 +78,14 @@ const toFormFromItem = (item: Item): ItemForm => ({
   price: String(item.price),
   status: item.status,
   photo: null,
-  optionMode: "replace",
+  existing_photo_url: item.photo_url ?? null,
   option_groups: item.option_groups?.length
     ? item.option_groups.map((group) => ({
         group_id: group.group_id,
         name: group.name,
-        required: group.required,
-        min_select: group.min_select,
-        max_select: group.max_select,
+        multiple_select: group.multiple_select,
+        is_required: group.is_required,
+        status: group.status ?? 1,
         is_deleted: false,
         options: group.options.map((option) => ({
           option_id: option.option_id,
@@ -107,12 +106,15 @@ export default function Inventory() {
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
+  const [previewItem, setPreviewItem] = useState<Item | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [form, setForm] = useState<ItemForm>(createInitialForm());
   const [formError, setFormError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | StatusFlag>("all");
   const [categoryFilter, setCategoryFilter] = useState<"all" | number>("all");
   const [page, setPage] = useState(1);
+  const [selectedPhotoPreviewUrl, setSelectedPhotoPreviewUrl] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -185,6 +187,7 @@ export default function Inventory() {
       if (detailed) {
         setForm((prev) => ({
           ...prev,
+          existing_photo_url: detailed.photo_url ?? prev.existing_photo_url,
           option_groups: toFormFromItem(detailed).option_groups,
         }));
       }
@@ -222,7 +225,7 @@ export default function Inventory() {
         return prev;
       }
 
-      if (prev.optionMode === "patch" && typeof current.group_id === "number") {
+      if (typeof current.group_id === "number") {
         return {
           ...prev,
           option_groups: prev.option_groups.map((group, index) =>
@@ -245,7 +248,7 @@ export default function Inventory() {
         return group;
       }
 
-      if (form.optionMode === "patch" && typeof targetOption.option_id === "number") {
+      if (typeof targetOption.option_id === "number") {
         return {
           ...group,
           options: group.options.map((option, index) =>
@@ -303,9 +306,7 @@ export default function Inventory() {
       };
 
       const response = editing
-        ? form.optionMode === "patch"
-          ? await updateItem(editing.item_id, payload, "patch")
-          : await updateItemByCategory(form.categories_id, editing.item_id, payload, "replace")
+        ? await updateItem(editing.item_id, payload, "patch")
         : await createItem(form.categories_id, payload, "replace");
 
       toast.success(editing ? "Item updated" : "Item created", {
@@ -321,6 +322,20 @@ export default function Inventory() {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!form.photo) {
+      setSelectedPhotoPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(form.photo);
+    setSelectedPhotoPreviewUrl(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [form.photo]);
 
   const onDelete = async (itemId: number) => {
     if (!window.confirm("Delete this item?")) {
@@ -348,6 +363,24 @@ export default function Inventory() {
       toast.error("Status update failed", {
         description: parseApiError(error).message,
       });
+    }
+  };
+
+  const openPreviewDialog = async (item: Item) => {
+    setPreviewItem(item);
+    setPreviewLoading(true);
+    try {
+      const response = await getCategoryItems(item.categories_id);
+      const detailed = response.items.find((entry) => entry.item_id === item.item_id);
+      if (detailed) {
+        setPreviewItem((current) => (current?.item_id === item.item_id ? detailed : current));
+      }
+    } catch (error) {
+      toast.error("Could not load item preview details", {
+        description: parseApiError(error).message,
+      });
+    } finally {
+      setPreviewLoading(false);
     }
   };
 
@@ -428,6 +461,7 @@ export default function Inventory() {
               <TableHead>ID</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Name</TableHead>
+              <TableHead>Photo</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -436,13 +470,13 @@ export default function Inventory() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-zinc-500">
-                  Loading items...
+                <TableCell colSpan={7}>
+                  <Loader message="Loading items..." className="min-h-[80px]" />
                 </TableCell>
               </TableRow>
             ) : paginatedItems.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-zinc-500">
+                <TableCell colSpan={7} className="text-center text-zinc-500">
                   No items found.
                 </TableCell>
               </TableRow>
@@ -452,6 +486,17 @@ export default function Inventory() {
                   <TableCell>{item.item_id}</TableCell>
                   <TableCell>{getCategoryName(item.categories_id)}</TableCell>
                   <TableCell>{item.name}</TableCell>
+                  <TableCell>
+                    {item.photo_url ? (
+                      <img
+                        src={item.photo_url}
+                        alt={item.name}
+                        className="h-10 w-10 rounded border border-zinc-200 object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-zinc-400">No photo</span>
+                    )}
+                  </TableCell>
                   <TableCell>{item.price}</TableCell>
                   <TableCell>
                     <Badge variant={item.status === 1 ? "default" : "secondary"}>
@@ -460,6 +505,16 @@ export default function Inventory() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          void openPreviewDialog(item);
+                        }}
+                      >
+                        Preview
+                      </Button>
                       <Button
                         type="button"
                         size="sm"
@@ -529,7 +584,7 @@ export default function Inventory() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-4xl overflow-auto">
+        <DialogContent className="max-h-[90vh] max-w-6xl overflow-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Item" : "Create Item"}</DialogTitle>
           </DialogHeader>
@@ -580,8 +635,8 @@ export default function Inventory() {
                   }
                   disabled={saving}
                 >
-                  <option value="1">Active (1)</option>
-                  <option value="0">Inactive (0)</option>
+                  <option value="1">Active</option>
+                  <option value="0">Inactive</option>
                 </select>
               </div>
             </div>
@@ -608,28 +663,16 @@ export default function Inventory() {
                 disabled={saving}
                 className="h-11 w-full border border-black bg-zinc-50 p-2 text-sm"
               />
+              {(selectedPhotoPreviewUrl || form.existing_photo_url) && (
+                <div className="pt-2">
+                  <img
+                    src={selectedPhotoPreviewUrl || form.existing_photo_url || ""}
+                    alt="Item preview"
+                    className="h-24 w-24 rounded border border-zinc-200 object-cover"
+                  />
+                </div>
+              )}
             </div>
-
-            {editing && (
-              <div className="space-y-1.5">
-                <Label htmlFor="item-option-mode">Option Group Update Mode</Label>
-                <select
-                  id="item-option-mode"
-                  className="h-11 w-full border border-black bg-zinc-50 px-3 text-sm"
-                  value={form.optionMode}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      optionMode: event.target.value === "patch" ? "patch" : "replace",
-                    }))
-                  }
-                  disabled={saving}
-                >
-                  <option value="replace">Full Replace (no IDs)</option>
-                  <option value="patch">Patch (group_id/option_id/is_deleted)</option>
-                </select>
-              </div>
-            )}
 
             <div className="space-y-3 border border-zinc-200 p-3">
               <div className="flex items-center justify-between">
@@ -667,47 +710,43 @@ export default function Inventory() {
                       }
                       disabled={saving || group.is_deleted}
                     />
-                    <Input
-                      label="Min Select"
-                      type="number"
-                      min={0}
-                      value={group.min_select}
-                      onChange={(event) =>
-                        updateGroup(groupIndex, (current) => ({
-                          ...current,
-                          min_select: Number(event.target.value),
-                        }))
-                      }
-                      disabled={saving || group.is_deleted}
-                    />
-                    <Input
-                      label="Max Select"
-                      type="number"
-                      min={0}
-                      value={group.max_select}
-                      onChange={(event) =>
-                        updateGroup(groupIndex, (current) => ({
-                          ...current,
-                          max_select: Number(event.target.value),
-                        }))
-                      }
-                      disabled={saving || group.is_deleted}
-                    />
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor={`group-multiple-${groupIndex}`}>Multiple Select</Label>
+                      <select
+                        id={`group-multiple-${groupIndex}`}
+                        className="h-11 border border-black bg-zinc-50 px-3 text-sm"
+                        value={String(group.multiple_select)}
+                        onChange={(event) =>
+                          updateGroup(groupIndex, (current) => ({
+                            ...current,
+                            multiple_select: Number(event.target.value) === 1 ? 1 : 0,
+                          }))
+                        }
+                        disabled={saving || group.is_deleted}
+                      >
+                        <option value="1">Yes</option>
+                        <option value="0">No</option>
+                      </select>
+                    </div>
                     <div className="flex items-end gap-2">
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          type="checkbox"
-                          checked={group.required}
+                      <div className="flex w-full flex-col gap-1.5">
+                        <Label htmlFor={`group-required-${groupIndex}`}>Is Required</Label>
+                        <select
+                          id={`group-required-${groupIndex}`}
+                          className="h-11 border border-black bg-zinc-50 px-3 text-sm"
+                          value={String(group.is_required)}
                           onChange={(event) =>
                             updateGroup(groupIndex, (current) => ({
                               ...current,
-                              required: event.target.checked,
+                              is_required: Number(event.target.value) === 1 ? 1 : 0,
                             }))
                           }
                           disabled={saving || group.is_deleted}
-                        />
-                        Required
-                      </label>
+                        >
+                          <option value="1">Yes</option>
+                          <option value="0">No</option>
+                        </select>
+                      </div>
                       <Button
                         type="button"
                         size="sm"
@@ -715,7 +754,7 @@ export default function Inventory() {
                         onClick={() => removeOptionGroup(groupIndex)}
                         disabled={saving}
                       >
-                        {form.optionMode === "patch" && group.group_id ? "Mark Delete" : "Remove"}
+                        {group.group_id ? "Mark Delete" : "Remove"}
                       </Button>
                     </div>
                   </div>
@@ -777,7 +816,7 @@ export default function Inventory() {
                             onClick={() => removeOption(groupIndex, optionIndex)}
                             disabled={saving || group.is_deleted}
                           >
-                            {form.optionMode === "patch" && option.option_id ? "Mark Delete" : "Remove"}
+                            {option.option_id ? "Mark Delete" : "Remove"}
                           </Button>
                         </div>
                       </div>
@@ -800,6 +839,87 @@ export default function Inventory() {
             </Button>
             <Button type="button" onClick={() => void onSave()} disabled={saving}>
               {saving ? "Saving..." : editing ? "Update Item" : "Create Item"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(previewItem) || previewLoading}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewItem(null);
+            setPreviewLoading(false);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-auto">
+          <DialogHeader>
+            <DialogTitle>Item Preview</DialogTitle>
+          </DialogHeader>
+          {previewLoading && (
+            <Loader message="Loading item details..." className="min-h-[80px]" />
+          )}
+          {previewItem && (
+            <div className="space-y-3 text-sm text-zinc-700">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <p><strong>ID:</strong> {previewItem.item_id}</p>
+                <p><strong>Category:</strong> {getCategoryName(previewItem.categories_id)}</p>
+                <p><strong>Name:</strong> {previewItem.name}</p>
+                <p><strong>Price:</strong> {previewItem.price}</p>
+                <p><strong>Status:</strong> {statusLabel(previewItem.status)}</p>
+              </div>
+
+              {previewItem.photo_url && (
+                <div>
+                  <p className="mb-1"><strong>Photo:</strong></p>
+                  <img
+                    src={previewItem.photo_url}
+                    alt={previewItem.name}
+                    className="h-28 w-28 rounded border border-zinc-200 object-cover"
+                  />
+                </div>
+              )}
+
+              <div>
+                <p className="mb-1"><strong>Description:</strong></p>
+                <p className="rounded border border-zinc-200 bg-zinc-50 p-2">
+                  {previewItem.description || "-"}
+                </p>
+              </div>
+
+              <div>
+                <p className="mb-2"><strong>Option Groups:</strong></p>
+                {!previewItem.option_groups || previewItem.option_groups.length === 0 ? (
+                  <p className="text-zinc-500">No option groups.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {previewItem.option_groups.map((group, index) => (
+                      <div key={`${group.group_id ?? "g"}-${index}`} className="rounded border border-zinc-200 p-2">
+                        <p className="font-medium">{group.name}</p>
+                        <p className="text-xs text-zinc-500">
+                          Multiple Select: {group.multiple_select} | Is Required: {group.is_required}
+                        </p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {group.options.map((option, optIndex) => (
+                            <span
+                              key={`${option.option_id ?? "o"}-${optIndex}`}
+                              className="rounded border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs"
+                            >
+                              {option.name} ({option.price_delta})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPreviewItem(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

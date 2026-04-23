@@ -28,6 +28,7 @@ import {
 } from "@/services/orderService";
 import { getTables } from "@/services/tableService";
 import type { OrderDetail, OrderStatus, OrderSummary } from "@/types/admin";
+import Loader from "@/pages/Loader";
 
 const PAGE_SIZE = 10;
 
@@ -85,6 +86,12 @@ export default function LiveOrders() {
       void loadOrderDetail(selectedOrderId);
     }
   }, [selectedOrderId]);
+
+  const openOrderPreview = (orderId: number) => {
+    // Always clear previous detail so preview re-fetch uses fresh :order_id param state.
+    setSelectedOrder(null);
+    setSelectedOrderId(orderId);
+  };
 
   const filtered = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -199,9 +206,9 @@ export default function LiveOrders() {
             }}
           >
             <option value="all">All</option>
-            <option value="0">Pending (0)</option>
-            <option value="1">Accepted (1)</option>
-            <option value="2">Completed (2)</option>
+            <option value="0">Pending</option>
+            <option value="1">Accepted</option>
+            <option value="2">Completed</option>
           </select>
         </div>
       </div>
@@ -212,7 +219,8 @@ export default function LiveOrders() {
             <TableRow>
               <TableHead>Order ID</TableHead>
               <TableHead>Table #</TableHead>
-              <TableHead>Total</TableHead>
+              <TableHead>Items</TableHead>
+              <TableHead>Total Qty</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="text-right">Action</TableHead>
@@ -221,13 +229,13 @@ export default function LiveOrders() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-zinc-500">
-                  Loading orders...
+                <TableCell colSpan={7}>
+                  <Loader message="Loading orders..." className="min-h-[80px]" />
                 </TableCell>
               </TableRow>
             ) : paginatedOrders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-zinc-500">
+                <TableCell colSpan={7} className="text-center text-zinc-500">
                   No orders found.
                 </TableCell>
               </TableRow>
@@ -236,10 +244,11 @@ export default function LiveOrders() {
                 <TableRow key={order.order_id}>
                   <TableCell>{order.order_id}</TableCell>
                   <TableCell>{order.table_number ?? "-"}</TableCell>
-                  <TableCell>{order.total_amount}</TableCell>
+                  <TableCell>{order.item_count ?? order.item_names?.length ?? 0}</TableCell>
+                  <TableCell>{order.total_quantity ?? 0}</TableCell>
                   <TableCell>
                     <Badge variant={badgeVariantForStatus(order.status)}>
-                      {ORDER_STATUS_LABELS[order.status]} ({order.status})
+                      {ORDER_STATUS_LABELS[order.status]}
                     </Badge>
                   </TableCell>
                   <TableCell>{order.created_at ? new Date(order.created_at).toLocaleString() : "-"}</TableCell>
@@ -248,10 +257,10 @@ export default function LiveOrders() {
                       type="button"
                       size="sm"
                       onClick={() => {
-                        setSelectedOrderId(order.order_id);
+                        openOrderPreview(order.order_id);
                       }}
                     >
-                      View
+                      Preview
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -296,7 +305,7 @@ export default function LiveOrders() {
             <DialogTitle>Order Detail</DialogTitle>
           </DialogHeader>
           {!selectedOrder ? (
-            <p className="text-sm text-zinc-500">Loading order detail...</p>
+            <Loader message="Loading order detail..." className="min-h-[100px]" />
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 border border-zinc-200 p-3 md:grid-cols-3">
@@ -311,8 +320,16 @@ export default function LiveOrders() {
                 <div>
                   <p className="text-xs text-zinc-500">Status</p>
                   <p className="font-medium">
-                    {ORDER_STATUS_LABELS[selectedOrder.status]} ({selectedOrder.status})
+                    {ORDER_STATUS_LABELS[selectedOrder.status]}
                   </p>
+                </div>
+                <div>
+                  <p className="text-xs text-zinc-500">Items</p>
+                  <p className="font-medium">{selectedOrder.item_count ?? selectedOrder.items.length}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-zinc-500">Total Quantity</p>
+                  <p className="font-medium">{selectedOrder.total_quantity ?? 0}</p>
                 </div>
               </div>
 
@@ -340,13 +357,15 @@ export default function LiveOrders() {
                             <div className="flex flex-col">
                               <span>{line.item_name}</span>
                               {line.options_text && (
-                                <span className="text-xs text-zinc-500">{line.options_text}</span>
+                                <span className="whitespace-pre-line text-xs text-zinc-500">
+                                  {line.options_text}
+                                </span>
                               )}
                             </div>
                           </TableCell>
                           <TableCell>{line.quantity}</TableCell>
-                          <TableCell>{line.unit_price}</TableCell>
-                          <TableCell>{line.total_price}</TableCell>
+                          <TableCell>{line.unit_price || "-"}</TableCell>
+                          <TableCell>{line.total_price || "-"}</TableCell>
                         </TableRow>
                       ))
                     )}

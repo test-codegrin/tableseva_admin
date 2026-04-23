@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
+import Loader from "@/pages/Loader";
 
 type RazorpayForm = {
   razorpay_key_id: string;
@@ -66,7 +67,7 @@ export default function PaymentMethodPage() {
     });
   }, [user]);
 
-  if (!user) return null;
+  if (!user) return <Loader message="Loading payment settings..." />;
 
   const validate = (): RazorpayFormErrors => {
     const e: RazorpayFormErrors = {};

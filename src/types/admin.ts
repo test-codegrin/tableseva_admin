@@ -64,9 +64,9 @@ export interface ItemOption {
 export interface ItemOptionGroup {
   group_id?: number;
   name: string;
-  required: boolean;
-  min_select: number;
-  max_select: number;
+  multiple_select: StatusFlag;
+  is_required: StatusFlag;
+  status?: StatusFlag;
   options: ItemOption[];
   is_deleted?: boolean;
 }
@@ -101,8 +101,9 @@ export interface ItemStatusPayload {
 
 export interface VendorTable {
   table_id: number;
-  table_number: number;
+  table_number: string;
   capacity: number;
+  area_type?: string;
   status?: StatusFlag;
   is_available?: StatusFlag;
   qr_code_url?: string | null;
@@ -111,8 +112,9 @@ export interface VendorTable {
 }
 
 export interface UpsertTablePayload {
-  table_number: number;
+  table_number: string;
   capacity: number;
+  area_type?: string;
   status?: StatusFlag;
   is_available?: StatusFlag;
 }
@@ -124,7 +126,7 @@ export interface TableQrCodeRecord {
 }
 
 export interface OrderLineItem {
-  item_id: number;
+  item_id: number | null;
   item_name: string;
   quantity: number;
   unit_price: number;
@@ -132,10 +134,19 @@ export interface OrderLineItem {
   options_text?: string | null;
 }
 
+export interface OrderItemQuantity {
+  item_name: string;
+  quantity: number;
+}
+
 export interface OrderSummary {
   order_id: number;
   table_id?: number | null;
-  table_number?: number | null;
+  table_number?: string | null;
+  item_names?: string[];
+  item_count?: number;
+  total_quantity?: number;
+  item_quantities?: OrderItemQuantity[];
   status: OrderStatus;
   total_amount: number;
   created_at?: string;

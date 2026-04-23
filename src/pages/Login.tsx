@@ -55,8 +55,8 @@ export default function Login() {
           <CardHeader className="flex flex-col items-center pb-6">
             <div className="mb-3 flex h-10 w-10 items-center justify-center">
               <img
-                src="/auth/logo.png"
-                alt="Logo"
+                src="/icon/table-seva-logo.png"
+                alt="TableSeva Logo"
                 className="h-full w-full object-contain"
               />
             </div>

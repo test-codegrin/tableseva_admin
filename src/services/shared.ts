@@ -15,6 +15,12 @@ export const toNullableString = (value: unknown): string | null =>
   typeof value === "string" ? value : null;
 
 export const toStatusFlag = (value: unknown, fallback: StatusFlag = 1): StatusFlag => {
+  if (value === false) {
+    return 0;
+  }
+  if (value === true) {
+    return 1;
+  }
   if (value === 0 || value === "0" || value === "inactive") {
     return 0;
   }

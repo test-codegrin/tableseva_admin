@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { getTableQrCodes, getTableQrImageUrl } from "@/services/tableService";
 import type { TableQrCodeRecord } from "@/types/admin";
+import Loader from "@/pages/Loader";
 
 export default function QRCodeGeneration() {
   const [records, setRecords] = useState<TableQrCodeRecord[]>([]);
@@ -35,6 +36,27 @@ export default function QRCodeGeneration() {
   useEffect(() => {
     void loadQrCodes();
   }, []);
+
+  const downloadQr = async (tableId: number, tableNumber?: number) => {
+    try {
+      const response = await fetch(getTableQrImageUrl(tableId));
+      if (!response.ok) {
+        throw new Error("Failed to fetch QR image.");
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `table-${tableNumber ?? tableId}-qr.png`;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      toast.error("QR download failed", { description: parseApiError(error).message });
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -64,8 +86,8 @@ export default function QRCodeGeneration() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={3} className="text-center text-zinc-500">
-                  Loading QR codes...
+                <TableCell colSpan={3}>
+                  <Loader message="Loading QR codes..." className="min-h-[80px]" />
                 </TableCell>
               </TableRow>
             ) : records.length === 0 ? (
@@ -99,9 +121,24 @@ export default function QRCodeGeneration() {
         <div className="max-w-md border border-zinc-200 bg-white p-4">
           <div className="mb-3 flex items-center justify-between">
             <p className="font-medium text-zinc-800">Table {previewTableId} QR Preview</p>
-            <Button type="button" size="sm" variant="outline" onClick={() => setPreviewTableId(null)}>
-              Close
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  void downloadQr(
+                    previewTableId,
+                    records.find((record) => record.table_id === previewTableId)?.table_number,
+                  )
+                }
+              >
+                Download
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => setPreviewTableId(null)}>
+                Close
+              </Button>
+            </div>
           </div>
           <img
             src={getTableQrImageUrl(previewTableId)}

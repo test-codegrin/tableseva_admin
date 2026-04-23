@@ -31,12 +31,14 @@ import {
   updateTableAvailability,
 } from "@/services/tableService";
 import type { StatusFlag, UpsertTablePayload, VendorTable } from "@/types/admin";
+import Loader from "@/pages/Loader";
 
 const PAGE_SIZE = 10;
 
 type TableForm = {
   table_number: string;
   capacity: string;
+  area_type: string;
   status: StatusFlag;
   is_available: StatusFlag;
 };
@@ -44,12 +46,24 @@ type TableForm = {
 const createInitialForm = (): TableForm => ({
   table_number: "",
   capacity: "",
+  area_type: "indoor",
   status: 1,
   is_available: 1,
 });
 
-const statusLabel = (status: StatusFlag | undefined) => (status === 0 ? "Disabled" : "Enabled");
-const availabilityLabel = (flag: StatusFlag | undefined) => (flag === 0 ? "Occupied" : "Available");
+const statusLabel = (status: StatusFlag | undefined) =>
+  status === 0 ? "Disabled" : status === 1 ? "Enabled" : "-";
+const availabilityLabel = (flag: StatusFlag | undefined) =>
+  flag === 0 ? "Occupied" : flag === 1 ? "Available" : "-";
+const mergeTableWithFallback = (current: VendorTable, incoming: VendorTable): VendorTable => ({
+  ...current,
+  ...incoming,
+  status: typeof incoming.status === "undefined" ? current.status ?? 1 : incoming.status,
+  is_available:
+    typeof incoming.is_available === "undefined"
+      ? current.is_available ?? 1
+      : incoming.is_available,
+});
 
 export default function TableManagement() {
   const [tables, setTables] = useState<VendorTable[]>([]);
@@ -57,6 +71,7 @@ export default function TableManagement() {
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<VendorTable | null>(null);
+  const [previewTable, setPreviewTable] = useState<VendorTable | null>(null);
   const [form, setForm] = useState<TableForm>(createInitialForm());
   const [formError, setFormError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -69,7 +84,20 @@ export default function TableManagement() {
     setLoading(true);
     try {
       const response = await getTables();
-      setTables(response.tables);
+      setTables((previous) =>
+        response.tables.map((table) => {
+          const previousMatch = previous.find((entry) => entry.table_id === table.table_id);
+          return {
+            ...table,
+            status:
+              typeof table.status === "undefined" ? previousMatch?.status ?? 1 : table.status,
+            is_available:
+              typeof table.is_available === "undefined"
+                ? previousMatch?.is_available ?? 1
+                : table.is_available,
+          };
+        }),
+      );
     } catch (error) {
       toast.error("Failed to fetch tables", {
         description: parseApiError(error).message,
@@ -129,6 +157,7 @@ export default function TableManagement() {
       setForm({
         table_number: String(detail.table_number),
         capacity: String(detail.capacity),
+        area_type: detail.area_type || "indoor",
         status: detail.status ?? 1,
         is_available: detail.is_available ?? 1,
       });
@@ -143,14 +172,13 @@ export default function TableManagement() {
   };
 
   const validateForm = () => {
-    const tableNumber = Number(form.table_number);
     const capacity = Number(form.capacity);
 
-    if (!Number.isFinite(tableNumber) || tableNumber <= 0) {
-      throw new Error("Table number must be a positive number.");
+    if (!form.table_number.trim()) {
+      throw new Error("Table number is required.");
     }
     if (!Number.isFinite(capacity) || capacity <= 0) {
-      throw new Error("Capacity must be a positive number.");
+      throw new Error("Seating capacity must be a positive number.");
     }
     if (!(form.status === 0 || form.status === 1)) {
       throw new Error("Status must be 0 or 1.");
@@ -161,8 +189,9 @@ export default function TableManagement() {
   };
 
   const buildPayload = (): UpsertTablePayload => ({
-    table_number: Number(form.table_number),
+    table_number: form.table_number.trim(),
     capacity: Number(form.capacity),
+    area_type: form.area_type,
     status: form.status,
     is_available: form.is_available,
   });
@@ -217,11 +246,49 @@ export default function TableManagement() {
     }
   };
 
+  const refreshTableRow = async (tableId: number) => {
+    try {
+      const detail = await getTableById(tableId);
+      setTables((prev) =>
+        prev.map((table) =>
+          table.table_id === tableId ? mergeTableWithFallback(table, detail) : table,
+        ),
+      );
+      setPreviewTable((prev) =>
+        prev?.table_id === tableId ? mergeTableWithFallback(prev, detail) : prev,
+      );
+      setQrPreviewTable((prev) =>
+        prev?.table_id === tableId ? mergeTableWithFallback(prev, detail) : prev,
+      );
+    } catch {
+      // Ignore row detail refresh failure because main list refresh already happened.
+    }
+  };
+
   const onToggleStatus = async (tableId: number) => {
+    const current = tables.find((table) => table.table_id === tableId);
+    const nextStatus: StatusFlag | null =
+      current?.status === 1 ? 0 : current?.status === 0 ? 1 : null;
+
+    if (nextStatus !== null) {
+      setTables((prev) =>
+        prev.map((table) =>
+          table.table_id === tableId ? { ...table, status: nextStatus } : table,
+        ),
+      );
+      setPreviewTable((prev) =>
+        prev?.table_id === tableId ? { ...prev, status: nextStatus } : prev,
+      );
+      setQrPreviewTable((prev) =>
+        prev?.table_id === tableId ? { ...prev, status: nextStatus } : prev,
+      );
+    }
+
     try {
       const response = await toggleTableStatus(tableId);
       toast.success("Status updated", { description: response.message });
       await loadTables();
+      await refreshTableRow(tableId);
     } catch (error) {
       toast.error("Status update failed", { description: parseApiError(error).message });
     }
@@ -232,6 +299,7 @@ export default function TableManagement() {
       const response = await updateTableAvailability(tableId, isAvailable);
       toast.success("Availability updated", { description: response.message });
       await loadTables();
+      await refreshTableRow(tableId);
     } catch (error) {
       toast.error("Availability update failed", {
         description: parseApiError(error).message,
@@ -343,8 +411,8 @@ export default function TableManagement() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-zinc-500">
-                  Loading tables...
+                <TableCell colSpan={6}>
+                  <Loader message="Loading tables..." className="min-h-[80px]" />
                 </TableCell>
               </TableRow>
             ) : paginatedTables.length === 0 ? (
@@ -374,6 +442,14 @@ export default function TableManagement() {
                       <Button
                         type="button"
                         size="sm"
+                        variant="outline"
+                        onClick={() => setPreviewTable(table)}
+                      >
+                        Preview
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
                         variant="secondary"
                         onClick={() => {
                           void openEditDialog(table);
@@ -389,7 +465,7 @@ export default function TableManagement() {
                           void onToggleStatus(table.table_id);
                         }}
                       >
-                        Toggle Status
+                        {table.status === 1 ? "Disable" : "Enable"}
                       </Button>
                       <Button
                         type="button"
@@ -468,20 +544,35 @@ export default function TableManagement() {
           <div className="space-y-4">
             <Input
               label="Table Number"
-              type="number"
-              min={1}
+              type="text"
+              placeholder="T-101"
               value={form.table_number}
               onChange={(event) => setForm((prev) => ({ ...prev, table_number: event.target.value }))}
               disabled={saving}
             />
             <Input
-              label="Capacity"
+              label="Seating Capacity"
               type="number"
               min={1}
               value={form.capacity}
               onChange={(event) => setForm((prev) => ({ ...prev, capacity: event.target.value }))}
               disabled={saving}
             />
+            <div className="space-y-1.5">
+              <Label htmlFor="table-area-type">Area Type</Label>
+              <select
+                id="table-area-type"
+                className="h-11 w-full border border-black bg-zinc-50 px-3 text-sm"
+                value={form.area_type}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, area_type: event.target.value }))
+                }
+                disabled={saving}
+              >
+                <option value="indoor">Indoor</option>
+                <option value="outdoor">Outdoor</option>
+              </select>
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="table-status">Status</Label>
               <select
@@ -493,8 +584,8 @@ export default function TableManagement() {
                 }
                 disabled={saving}
               >
-                <option value="1">Enabled (1)</option>
-                <option value="0">Disabled (0)</option>
+                <option value="1">Enabled</option>
+                <option value="0">Disabled</option>
               </select>
             </div>
             <div className="space-y-1.5">
@@ -511,8 +602,8 @@ export default function TableManagement() {
                 }
                 disabled={saving}
               >
-                <option value="1">Available (1)</option>
-                <option value="0">Occupied (0)</option>
+                <option value="1">Available</option>
+                <option value="0">Occupied</option>
               </select>
             </div>
             {formError && <p className="text-sm text-red-600">{formError}</p>}
@@ -560,6 +651,48 @@ export default function TableManagement() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(previewTable)} onOpenChange={(open) => !open && setPreviewTable(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Table Preview</DialogTitle>
+          </DialogHeader>
+          {previewTable && (
+            <div className="space-y-3 text-sm text-zinc-700">
+              <p><strong>ID:</strong> {previewTable.table_id}</p>
+              <p><strong>Table Number:</strong> {previewTable.table_number}</p>
+              <p><strong>Seating Capacity:</strong> {previewTable.capacity}</p>
+              <p><strong>Area Type:</strong> {previewTable.area_type || "-"}</p>
+              <p><strong>Status:</strong> {statusLabel(previewTable.status)}</p>
+              <p><strong>Availability:</strong> {availabilityLabel(previewTable.is_available)}</p>
+              <div>
+                <p className="mb-2"><strong>QR Preview:</strong></p>
+                <img
+                  src={getTableQrImageUrl(previewTable.table_id)}
+                  alt={`Table ${previewTable.table_number} QR`}
+                  className="mx-auto border border-zinc-200 p-2"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            {previewTable && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  void downloadQr(previewTable);
+                }}
+              >
+                Download QR
+              </Button>
+            )}
+            <Button type="button" variant="outline" onClick={() => setPreviewTable(null)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -17,6 +17,7 @@ import {
 } from "./shared";
 
 const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 export type OptionGroupUpdateMode = "replace" | "patch";
 
@@ -32,7 +33,7 @@ const mapItemOption = (value: unknown): ItemOption => {
         ? toNumber(payload.option_id)
         : undefined,
     name: toString(payload.name),
-    price_delta: toNumber(payload.price_delta ?? payload.additional_price),
+    price_delta: toNumber(payload.price_delta ?? payload.additional_price ?? payload.price),
     is_deleted: payload.is_deleted === true || payload.is_deleted === 1,
   };
 };
@@ -40,15 +41,19 @@ const mapItemOption = (value: unknown): ItemOption => {
 const mapItemOptionGroup = (value: unknown): ItemOptionGroup => {
   const payload = isRecord(value) ? value : {};
   const rawOptions = ensureArray<unknown>(payload.options);
+  const multipleSelect = toStatusFlag(payload.multiple_select, 0);
+  const isRequired = toStatusFlag(payload.is_required ?? payload.required, 0);
+  const groupStatus = toStatusFlag(payload.status, 1);
+
   return {
     group_id:
       typeof payload.group_id === "number" || typeof payload.group_id === "string"
         ? toNumber(payload.group_id)
         : undefined,
-    name: toString(payload.name),
-    required: payload.required === true || payload.required === 1 || payload.required === "1",
-    min_select: toNumber(payload.min_select),
-    max_select: toNumber(payload.max_select),
+    name: toString(payload.name ?? payload.group_name),
+    multiple_select: multipleSelect,
+    is_required: isRequired,
+    status: groupStatus,
     options: rawOptions.map(mapItemOption),
     is_deleted: payload.is_deleted === true || payload.is_deleted === 1,
   };
@@ -57,6 +62,16 @@ const mapItemOptionGroup = (value: unknown): ItemOptionGroup => {
 const mapItem = (value: unknown): Item => {
   const payload = isRecord(value) ? value : {};
   const optionGroups = ensureArray<unknown>(payload.option_groups).map(mapItemOptionGroup);
+  const rawPhotoUrl =
+    toNullableString(payload.photo_url) ??
+    toNullableString(payload.photo) ??
+    toNullableString(payload.image_url) ??
+    toNullableString(payload.image);
+
+  const normalizedPhotoUrl =
+    rawPhotoUrl && !/^https?:\/\//i.test(rawPhotoUrl)
+      ? `${API_BASE_URL.replace(/\/$/, "")}/${rawPhotoUrl.replace(/^\/+/, "")}`
+      : rawPhotoUrl;
 
   return {
     item_id: toNumber(payload.item_id),
@@ -65,7 +80,7 @@ const mapItem = (value: unknown): Item => {
     description: toString(payload.description),
     price: toNumber(payload.price),
     status: toStatusFlag(payload.status),
-    photo_url: toNullableString(payload.photo_url),
+    photo_url: normalizedPhotoUrl,
     option_groups: optionGroups.length > 0 ? optionGroups : undefined,
     created_at: toNullableString(payload.created_at) ?? undefined,
     updated_at: toNullableString(payload.updated_at) ?? undefined,
@@ -121,11 +136,11 @@ const validateOptionGroups = (groups: ItemOptionGroup[]) => {
     if (!group.name.trim()) {
       throw new Error(`Option group ${groupIndex + 1}: name is required.`);
     }
-    if (group.min_select < 0 || group.max_select < 0) {
-      throw new Error(`Option group ${groupIndex + 1}: min/max must be non-negative.`);
+    if (!(group.multiple_select === 0 || group.multiple_select === 1)) {
+      throw new Error(`Option group ${groupIndex + 1}: multiple_select must be 0 or 1.`);
     }
-    if (group.max_select < group.min_select) {
-      throw new Error(`Option group ${groupIndex + 1}: max_select must be >= min_select.`);
+    if (!(group.is_required === 0 || group.is_required === 1)) {
+      throw new Error(`Option group ${groupIndex + 1}: is_required must be 0 or 1.`);
     }
     if (!Array.isArray(group.options) || group.options.length === 0) {
       throw new Error(`Option group ${groupIndex + 1}: at least one option is required.`);
@@ -145,13 +160,13 @@ export const buildOptionGroupReplacePayload = (groups: ItemOptionGroup[]) => {
   validateOptionGroups(groups);
 
   return groups.map((group) => ({
-    name: group.name.trim(),
-    required: Boolean(group.required),
-    min_select: toNumber(group.min_select),
-    max_select: toNumber(group.max_select),
+    group_name: group.name.trim(),
+    multiple_select: group.multiple_select,
+    is_required: group.is_required,
+    status: group.status ?? 1,
     options: group.options.map((option) => ({
       name: option.name.trim(),
-      price_delta: toNumber(option.price_delta),
+      price: toNumber(option.price_delta),
     })),
   }));
 };
@@ -159,20 +174,40 @@ export const buildOptionGroupReplacePayload = (groups: ItemOptionGroup[]) => {
 export const buildOptionGroupPatchPayload = (groups: ItemOptionGroup[]) => {
   validateOptionGroups(groups.filter((group) => group.is_deleted !== true));
 
-  return groups.map((group) => ({
-    ...(typeof group.group_id === "number" ? { group_id: group.group_id } : {}),
-    name: group.name.trim(),
-    required: Boolean(group.required),
-    min_select: toNumber(group.min_select),
-    max_select: toNumber(group.max_select),
-    ...(group.is_deleted ? { is_deleted: true } : {}),
-    options: group.options.map((option) => ({
-      ...(typeof option.option_id === "number" ? { option_id: option.option_id } : {}),
-      name: option.name.trim(),
-      price_delta: toNumber(option.price_delta),
-      ...(option.is_deleted ? { is_deleted: true } : {}),
-    })),
-  }));
+  return groups.map((group) => {
+    const baseGroup = {
+      ...(typeof group.group_id === "number" ? { group_id: group.group_id } : {}),
+      ...(group.is_deleted ? { is_deleted: true } : {}),
+    };
+
+    if (group.is_deleted) {
+      return baseGroup;
+    }
+
+    return {
+      ...baseGroup,
+      group_name: group.name.trim(),
+      multiple_select: group.multiple_select,
+      is_required: group.is_required,
+      status: group.status ?? 1,
+      options: group.options.map((option) => {
+        const baseOption = {
+          ...(typeof option.option_id === "number" ? { option_id: option.option_id } : {}),
+          ...(option.is_deleted ? { is_deleted: true } : {}),
+        };
+
+        if (option.is_deleted) {
+          return baseOption;
+        }
+
+        return {
+          ...baseOption,
+          name: option.name.trim(),
+          price: toNumber(option.price_delta),
+        };
+      }),
+    };
+  });
 };
 
 type BuildItemMultipartPayloadArgs = {

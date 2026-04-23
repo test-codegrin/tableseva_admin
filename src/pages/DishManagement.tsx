@@ -23,7 +23,7 @@ interface CategoryItem {
   categories_id: number;
   name: string;
   description: string;
-  status: "active" | "inactive";
+  status: 0 | 1 | "active" | "inactive" | string | number;
   item_count?: number;
   created_at?: string;
 }
@@ -31,6 +31,14 @@ interface CategoryItem {
 const PAGE_SIZE = 5;
 
 export default function DishManagement() {
+  const toStatusFlag = (status: CategoryItem["status"]): 0 | 1 => {
+    if (status === 0 || status === "0" || status === "inactive") return 0;
+    return 1;
+  };
+
+  const toStatusLabel = (status: CategoryItem["status"]) =>
+    toStatusFlag(status) === 1 ? "active" : "inactive";
+
   const [isOpen, setIsOpen] = useState(false);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,12 +46,12 @@ export default function DishManagement() {
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [page, setPage] = useState(1);
   const [form, setForm] = useState({
     name: "",
     description: "",
-    status: "active",
+    status: 1 as 0 | 1,
   });
 
   const fetchCategories = async () => {
@@ -67,7 +75,7 @@ export default function DishManagement() {
 
   const openAdd = () => {
     setEditingId(null);
-    setForm({ name: "", description: "", status: "active" });
+    setForm({ name: "", description: "", status: 1 });
     setIsOpen(true);
   };
 
@@ -76,7 +84,7 @@ export default function DishManagement() {
     setForm({
       name: cat.name,
       description: cat.description,
-      status: cat.status,
+      status: toStatusFlag(cat.status),
     });
     setIsOpen(true);
   };
@@ -98,7 +106,10 @@ export default function DishManagement() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          status: form.status,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -129,7 +140,7 @@ export default function DishManagement() {
   // Filter + search
   const filtered = categories.filter((c) => {
     const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || c.status === statusFilter;
+    const matchStatus = statusFilter === "all" || toStatusLabel(c.status) === statusFilter;
     return matchSearch && matchStatus;
   });
 
@@ -153,9 +164,6 @@ export default function DishManagement() {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
-
-  const formatDate = (d?: string) =>
-    d ? new Date(d).toISOString().split("T")[0] : "—";
 
   // Page number list
   const pageNums = () => {
@@ -219,7 +227,10 @@ export default function DishManagement() {
           <select
             value={statusFilter}
             onChange={(e) => {
-              setStatusFilter(e.target.value);
+              const value = e.target.value;
+              setStatusFilter(
+                value === "active" || value === "inactive" ? value : "all",
+              );
               setPage(1);
             }}
             className="h-9  border border-zinc-200 bg-zinc-50 px-3 text-xs font-medium text-zinc-600 outline-none focus:border-primary transition"
@@ -287,8 +298,9 @@ export default function DishManagement() {
                 </tr>
               ) : (
                 paginated.map((cat) => {
-                  const statusStr = String(cat.status ?? "").toLowerCase();
-                  const inactive = statusStr === "inactive";
+                  const statusFlag = toStatusFlag(cat.status);
+                  const statusStr = statusFlag === 1 ? "active" : "inactive";
+                  const inactive = statusFlag === 0;
                   return (
                     <tr
                       key={cat.categories_id}
@@ -309,7 +321,7 @@ export default function DishManagement() {
                       <td className="px-4 py-3.5">
                         <span
                           className={`inline-flex items-center border px-2 py-0.5 text-[11px] font-bold tracking-wide ${
-                            statusStr === "active"
+                            statusFlag === 1
                               ? "border-primary/40 bg-primary/5 text-primary"
                               : "border-zinc-300 bg-zinc-50 text-zinc-400"
                           }`}
@@ -427,16 +439,18 @@ export default function DishManagement() {
             <div className="space-y-2">
               <Label>Status</Label>
               <RadioGroup
-                value={form.status}
-                onValueChange={(v) => setForm({ ...form, status: v })}
+                value={String(form.status)}
+                onValueChange={(v) =>
+                  setForm({ ...form, status: v === "1" ? 1 : 0 })
+                }
                 className="flex gap-4"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="active" id="active" />
+                  <RadioGroupItem value="1" id="active" />
                   <Label htmlFor="active">Active</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="inactive" id="inactive" />
+                  <RadioGroupItem value="0" id="inactive" />
                   <Label htmlFor="inactive">Inactive</Label>
                 </div>
               </RadioGroup>

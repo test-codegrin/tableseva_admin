@@ -16,21 +16,21 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { label: "Dashboard",            icon: ICONS.dashboard,  path: "/dashboard" },
+  { label: "Dashboard", icon: ICONS.dashboard, path: "/dashboard" },
   {
     label: "Category Management",
     icon: ICONS.forkspoon,
     path: "/",
     children: [
       { label: "Dish Management", path: "/dish-management" },
-      { label: "Item Name",       path: "/item-name"       },
+      { label: "Item Name", path: "/item-name" },
     ],
   },
-  { label: "Table Management",     icon: ICONS.tableMgmt,  path: "/tables"    },
-  { label: "QR Code Generation",   icon: ICONS.qrCode,     path: "/qr-code"   },
-  { label: "Stock / Inventory",    icon: ICONS.inventory,  path: "/inventory" },
-  { label: "Payments",             icon: ICONS.payments,   path: "/payments"  },
-  { label: "Live Orders Tracking", icon: ICONS.liveOrders, path: "/orders"    },
+  { label: "Table Management", icon: ICONS.tableMgmt, path: "/tables" },
+  { label: "QR Code Generation", icon: ICONS.qrCode, path: "/qr-code" },
+  { label: "Stock / Inventory", icon: ICONS.inventory, path: "/inventory" },
+  { label: "Payments", icon: ICONS.payments, path: "/payments" },
+  { label: "Live Orders Tracking", icon: ICONS.liveOrders, path: "/orders" },
 ];
 
 export default function DashboardLayout() {
@@ -65,8 +65,12 @@ export default function DashboardLayout() {
       <aside className={`${collapsed ? "w-15" : "w-65"} transition-all duration-300 bg-[#F7F7F7] border-r border-zinc-100 flex flex-col shrink-0`}>
 
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-4">
-          <img src="/auth/dashlogo.png" alt="" />
+        <div className={`flex items-center py-4 ${collapsed ? "justify-center px-2" : "gap-3 px-4"}`}>
+          <img
+            src={collapsed ? "/icon/table-icon.png" : "/icon/table-seva-logo.png"}
+            alt="TableSeva Logo"
+            className={collapsed ? "h-8 w-8 object-contain" : "h-10 w-auto object-contain"}
+          />
         </div>
 
         {/* Nav Items */}
@@ -90,29 +94,28 @@ export default function DashboardLayout() {
                   }}
                   title={collapsed ? item.label : undefined}
                   variant={isActive && !hasChildren ? "default" : "ghost"}
-                  className={`w-full justify-start gap-3 px-3 ${
-                    isActive
+                  className={`w-full justify-start gap-3 px-3 ${isActive
                       ? hasChildren
                         ? "text-white bg-primary hover:bg-[#CC543A]/15"
                         : "text-white"
                       : "text-black hover:bg-zinc-200 hover:text-zinc-900"
-                  }`}
+                    }`}
                 >
                   <Icon
                     icon={item.icon}
-                    width={20}
-                    className={`shrink-0 ${
-                      isActive ? (hasChildren ? "" : "text-white") : "text-black"
-                    }`}
+                    width={24}
+                    height={24}
+                    className={`shrink-0 ${isActive ? (hasChildren ? "" : "text-white") : "text-black"
+                      }`}
                   />
                   {!collapsed && <span className="truncate">{item.label}</span>}
                   {!collapsed && hasChildren && (
                     <Icon
                       icon={isOpen ? ICONS.chevronLeft : ICONS.chevronRight}
-                      width={14}
-                      className={`ml-auto transition-transform duration-200 ${isOpen ? "-rotate-90" : "rotate-90"} ${
-                        isActive
-                      }`}
+                      width={18}
+                      height={18}
+                      className={`ml-auto transition-transform duration-200 ${isOpen ? "-rotate-90" : "rotate-90"} ${isActive
+                        }`}
                     />
                   )}
                 </Button>
@@ -128,16 +131,14 @@ export default function DashboardLayout() {
                           type="button"
                           onClick={() => navigate(child.path)}
                           variant="ghost"
-                          className={`w-full justify-start text-sm px-2 py-2 h-auto ${
-                            isChildActive
+                          className={`w-full justify-start text-sm px-2 py-2 h-auto ${isChildActive
                               ? "text-[#CC543A] font-semibold bg-[#CC543A]/10 hover:bg-[#CC543A]/15"
                               : "text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800"
-                          }`}
+                            }`}
                         >
                           {/* dot indicator */}
-                          <span className={`mr-2 h-1.5 w-1.5 rounded-full shrink-0 ${
-                            isChildActive ? "bg-[#CC543A]" : "bg-zinc-300"
-                          }`} />
+                          <span className={`mr-2 h-1.5 w-1.5 rounded-full shrink-0 ${isChildActive ? "bg-[#CC543A]" : "bg-zinc-300"
+                            }`} />
                           {child.label}
                         </Button>
                       );
@@ -189,7 +190,7 @@ export default function DashboardLayout() {
         <header className="bg-white/80 border-b border-zinc-100 p-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <Button type="button" variant="ghost" size="icon-sm" onClick={() => setCollapsed(!collapsed)} className="text-zinc-400">
-              <Icon icon={collapsed ? ICONS.chevronRight : ICONS.chevronLeft} width={18} />
+              <Icon icon={collapsed ? ICONS.chevronRight : ICONS.chevronLeft} width={22} height={22} />
             </Button>
           </div>
           <div className="flex items-center gap-3">

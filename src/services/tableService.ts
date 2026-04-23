@@ -12,25 +12,37 @@ import {
   toNullableString,
   toNumber,
   toStatusFlag,
+  toString,
 } from "./shared";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 const mapTable = (value: unknown): VendorTable => {
   const payload = isRecord(value) ? value : {};
-  const mappedStatus = toStatusFlag(
-    payload.status ?? payload.table_status ?? payload.is_active,
-    1,
-  );
-  const mappedAvailability = toStatusFlag(
-    payload.is_available ?? payload.availability ?? Number(toBooleanFlag(payload.available, true)),
-    1,
-  );
+  const rawStatus =
+    payload.status ??
+    payload.table_status ??
+    payload.is_active ??
+    payload.enabled ??
+    payload.is_enabled;
+  const rawAvailability =
+    payload.availability_status ??
+    payload.is_available ??
+    payload.availability ??
+    payload.available ??
+    Number(toBooleanFlag(payload.is_available_now, false));
+  const mappedStatus =
+    rawStatus === undefined || rawStatus === null ? undefined : toStatusFlag(rawStatus, 1);
+  const mappedAvailability =
+    rawAvailability === undefined || rawAvailability === null
+      ? undefined
+      : toStatusFlag(rawAvailability, 1);
 
   return {
     table_id: toNumber(payload.table_id),
-    table_number: toNumber(payload.table_number),
-    capacity: toNumber(payload.capacity, 1),
+    table_number: toString(payload.table_number),
+    capacity: toNumber(payload.seating_capacity ?? payload.capacity, 1),
+    area_type: toString(payload.area_type, "indoor"),
     status: mappedStatus,
     is_available: mappedAvailability,
     qr_code_url: toNullableString(payload.qr_code_url),
@@ -52,25 +64,71 @@ const extractTableArray = (value: unknown): VendorTable[] => {
     return value.tables.map(mapTable);
   }
 
+  if (Array.isArray(value.data)) {
+    return value.data.map(mapTable);
+  }
+
   if (isRecord(value.data) && Array.isArray(value.data.tables)) {
     return value.data.tables.map(mapTable);
+  }
+
+  if (isRecord(value.data) && Array.isArray(value.data.data)) {
+    return value.data.data.map(mapTable);
   }
 
   return [];
 };
 
+const extractTableDetail = (value: unknown): VendorTable => {
+  if (!isRecord(value)) {
+    return mapTable(value);
+  }
+
+  if (isRecord(value.table)) {
+    return mapTable(value.table);
+  }
+
+  if (Array.isArray(value.data) && value.data.length > 0) {
+    return mapTable(value.data[0]);
+  }
+
+  if (Array.isArray(value.tables) && value.tables.length > 0) {
+    return mapTable(value.tables[0]);
+  }
+
+  if (isRecord(value.data) && isRecord(value.data.table)) {
+    return mapTable(value.data.table);
+  }
+
+  if (isRecord(value.data) && Array.isArray(value.data.tables) && value.data.tables.length > 0) {
+    return mapTable(value.data.tables[0]);
+  }
+
+  if (isRecord(value.data) && Array.isArray(value.data.data) && value.data.data.length > 0) {
+    return mapTable(value.data.data[0]);
+  }
+
+  if (isRecord(value.data)) {
+    return mapTable(value.data);
+  }
+
+  return mapTable(value);
+};
+
 const normalizeTablePayload = (payload: UpsertTablePayload) => {
-  if (!Number.isFinite(payload.table_number) || payload.table_number <= 0) {
-    throw new Error("Table number must be a positive number.");
+  const tableNumber = payload.table_number.trim();
+  if (!tableNumber) {
+    throw new Error("Table number is required.");
   }
 
   if (!Number.isFinite(payload.capacity) || payload.capacity <= 0) {
-    throw new Error("Capacity must be a positive number.");
+    throw new Error("Seating capacity must be a positive number.");
   }
 
-  const normalized: Record<string, number> = {
-    table_number: Math.floor(payload.table_number),
-    capacity: Math.floor(payload.capacity),
+  const normalized: Record<string, number | string> = {
+    table_number: tableNumber,
+    seating_capacity: Math.floor(payload.capacity),
+    area_type: payload.area_type?.trim() || "indoor",
   };
 
   if (typeof payload.status !== "undefined") {
@@ -84,7 +142,7 @@ const normalizeTablePayload = (payload: UpsertTablePayload) => {
     if (!(payload.is_available === 0 || payload.is_available === 1)) {
       throw new Error("Table availability must be 0 or 1.");
     }
-    normalized.is_available = payload.is_available;
+    normalized.availability_status = payload.is_available;
   }
 
   return normalized;
@@ -108,7 +166,7 @@ export const getTableById = async (tableId: number) => {
     url: `/tables/${tableId}`,
   });
 
-  return mapTable(response.data ?? response.raw);
+  return extractTableDetail(response.data ?? response.raw);
 };
 
 export const createTable = async (payload: UpsertTablePayload) => {
@@ -154,7 +212,7 @@ export const updateTableAvailability = async (tableId: number, is_available: Sta
   const response = await requestApi<unknown>({
     method: "patch",
     url: `/tables/${tableId}/availability`,
-    data: { is_available },
+    data: { availability_status: is_available },
   });
 
   return {

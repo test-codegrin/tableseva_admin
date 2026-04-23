@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import type { Category, StatusFlag } from "@/types/admin";
+import Loader from "@/pages/Loader";
 import {
   createCategory,
   deleteCategory,
@@ -56,6 +57,7 @@ export default function CategoryManagement() {
   const [page, setPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
+  const [previewCategory, setPreviewCategory] = useState<Category | null>(null);
   const [form, setForm] = useState<CategoryForm>(initialForm);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -229,8 +231,8 @@ export default function CategoryManagement() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-zinc-500">
-                  Loading categories...
+                <TableCell colSpan={5}>
+                  <Loader message="Loading categories..." className="min-h-[80px]" />
                 </TableCell>
               </TableRow>
             ) : paginated.items.length === 0 ? (
@@ -252,6 +254,14 @@ export default function CategoryManagement() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPreviewCategory(category)}
+                      >
+                        Preview
+                      </Button>
                       <Button
                         type="button"
                         size="sm"
@@ -356,6 +366,37 @@ export default function CategoryManagement() {
             </Button>
             <Button type="button" onClick={() => void onSave()} disabled={saving}>
               {saving ? "Saving..." : editing ? "Update Category" : "Create Category"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(previewCategory)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewCategory(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Category Preview</DialogTitle>
+          </DialogHeader>
+          {previewCategory && (
+            <div className="space-y-2 text-sm text-zinc-700">
+              <p><strong>ID:</strong> {previewCategory.categories_id}</p>
+              <p><strong>Name:</strong> {previewCategory.name}</p>
+              <p><strong>Status:</strong> {statusLabel(previewCategory.status)}</p>
+              <p><strong>Description:</strong></p>
+              <p className="rounded border border-zinc-200 bg-zinc-50 p-2">
+                {previewCategory.description || "-"}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPreviewCategory(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

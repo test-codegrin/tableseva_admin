@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import Loader from "@/pages/Loader";
 
 type ProfileForm = {
   name: string;
@@ -71,7 +72,7 @@ export default function AccountDetailsPage() {
     });
   }, [user]);
 
-  if (!user) return null;
+  if (!user) return <Loader message="Loading profile details..." />;
 
   const validate = (): FormErrors => {
     const e: FormErrors = {};

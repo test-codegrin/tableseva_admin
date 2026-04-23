@@ -17,9 +17,8 @@ describe("buildItemMultipartPayload", () => {
         option_groups: [
           {
             name: "Spice Level",
-            required: false,
-            min_select: 0,
-            max_select: 1,
+            multiple_select: 0,
+            is_required: 0,
             options: [{ name: "Medium", price_delta: 0 }],
           },
         ],
@@ -44,9 +43,8 @@ describe("buildItemMultipartPayload", () => {
           option_groups: [
             {
               name: "Default",
-              required: false,
-              min_select: 0,
-              max_select: 1,
+              multiple_select: 0,
+              is_required: 0,
               options: [{ name: "One", price_delta: 0 }],
             },
           ],
@@ -69,9 +67,8 @@ describe("buildItemMultipartPayload", () => {
           option_groups: [
             {
               name: "Default",
-              required: false,
-              min_select: 0,
-              max_select: 1,
+              multiple_select: 0,
+              is_required: 0,
               options: [{ name: "One", price_delta: 0 }],
             },
           ],
@@ -79,6 +76,48 @@ describe("buildItemMultipartPayload", () => {
       });
 
     expect(invalid).toThrow("5MB");
+  });
+
+  it("builds patch payload with id-based option groups and price fields", () => {
+    const payload = buildItemMultipartPayload({
+      optionMode: "patch",
+      payload: {
+        name: "Coffee",
+        description: "Updated",
+        price: 100,
+        status: 1,
+        option_groups: [
+          {
+            group_id: 4,
+            name: "Types",
+            multiple_select: 0,
+            is_required: 0,
+            options: [
+              {
+                option_id: 9,
+                name: "Thick Milk",
+                price_delta: 20,
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    const rawGroups = payload.get("option_groups");
+    expect(rawGroups).toBeTypeOf("string");
+    const parsed = JSON.parse(String(rawGroups));
+
+    expect(parsed).toEqual([
+      {
+        group_id: 4,
+        group_name: "Types",
+        multiple_select: 0,
+        is_required: 0,
+        status: 1,
+        options: [{ option_id: 9, name: "Thick Milk", price: 20 }],
+      },
+    ]);
   });
 });
 

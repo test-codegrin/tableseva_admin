@@ -30,7 +30,7 @@ export default function Logoutbox({ collapsed = false, onLogout }: Props) {
         variant="ghost"
         className="w-full justify-start gap-3 px-3 text-primary hover:bg-primary/20"
       >
-        <Icon icon={ICONS.logout} width={16} className="shrink-0" />
+        <Icon icon={ICONS.logout} width={20} height={20} className="shrink-0" />
         {!collapsed && <span>Logout</span>}
       </Button>
 

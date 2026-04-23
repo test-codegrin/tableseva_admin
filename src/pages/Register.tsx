@@ -68,7 +68,7 @@ export default function Register() {
 
           <CardHeader className="flex flex-col items-center px-0 pt-0 pb-3 lg:pb-6">
             <div className="mb-2 lg:mb-3 flex h-8 w-8 lg:h-10 lg:w-10 items-center justify-center">
-              <img src="/auth/logo.png" alt="Logo" className="h-full w-full object-contain" />
+              <img src="/icon/table-seva-logo.png" alt="TableSeva Logo" className="h-full w-full object-contain" />
             </div>
             <h2 className="text-xl lg:text-[28px] font-semibold text-center leading-tight">
               Create Admin Account
