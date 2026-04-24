@@ -41,10 +41,10 @@ const mapOrderLineItem = (value: unknown): OrderLineItem => {
     toNullableString(payload.options_text) ??
     (options.length > 0
       ? options
-          .map((entry) =>
-            entry.groupName ? `${entry.groupName}: ${entry.optionName}` : entry.optionName,
-          )
-          .join("\n")
+        .map((entry) =>
+          entry.groupName ? `${entry.groupName}: ${entry.optionName}` : entry.optionName,
+        )
+        .join("\n")
       : null);
 
   return {

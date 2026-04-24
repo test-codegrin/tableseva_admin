@@ -139,3 +139,64 @@
     font-size: inherit;
   }
 }
+
+@layer components {
+  .app-toast {
+    border: 1px solid #1f2632;
+    border-left: 5px solid #ff6b1a;
+    border-radius: 0;
+    background: #121621;
+    color: #f4f5f7;
+    box-shadow: 0 12px 28px rgba(10, 12, 18, 0.35);
+    min-height: 70px;
+    padding: 14px 16px;
+  }
+
+  .app-toast-title {
+    color: #ff8e45;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .app-toast-description {
+    color: #f4f5f7;
+    font-size: 0.85rem;
+    margin-top: 2px;
+  }
+
+  .app-toast-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.4rem;
+    width: 1.4rem;
+    border-radius: 0.28rem;
+    background: #ff6b1a;
+    color: #121621;
+  }
+
+  .app-toast-close {
+    border: 0;
+    background: transparent;
+    color: #757d8a;
+  }
+
+  .app-toast-close:hover {
+    color: #c8ccd5;
+    background: transparent;
+  }
+
+  .dish-management-page {
+    width: 100%;
+  }
+
+  @media (min-width: 1200px) {
+    .dish-management-page {
+      transform: scale(0.97);
+      transform-origin: top left;
+      width: calc(100% / 0.97);
+    }
+  }
+}

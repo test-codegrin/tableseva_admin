@@ -1,68 +1,96 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import Loader from ".././pages/Loader";
-import DeleteDialog from "./DeleteDialog";
+import {
+  RiAddLine,
+  RiDeleteBinLine,
+  RiEdit2Line,
+  RiErrorWarningFill,
+  RiInformationLine,
+} from "@remixicon/react";
+import { parseApiError } from "@/api/apiClient";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import type { Category, StatusFlag } from "@/types/admin";
+import Loader from "@/pages/Loader";
+import {
+  createCategory,
+  deleteCategory,
+  filterCategoriesLocally,
+  getCategories,
+  paginateCategories,
+  updateCategory,
+} from "@/services/categoryService";
 
-const API_BASE = "https://1n2nng7m-3000.inc1.devtunnels.ms";
+const PAGE_SIZE = 8;
 
-interface CategoryItem {
-  categories_id: number;
+type CategoryForm = {
   name: string;
   description: string;
-  status: 0 | 1 | "active" | "inactive" | string | number;
-  item_count?: number;
-  created_at?: string;
-}
+  status: StatusFlag;
+};
 
-const PAGE_SIZE = 5;
+const initialForm: CategoryForm = {
+  name: "",
+  description: "",
+  status: 1,
+};
+
+const statusLabel = (status: StatusFlag) => (status === 1 ? "Active" : "Inactive");
+
+const toDateKey = (value?: string) => {
+  if (!value) {
+    return 0;
+  }
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+const formatActivityTimestamp = (value?: string) => {
+  if (!value) {
+    return "N/A";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hour}:${minute}`;
+};
 
 export default function DishManagement() {
-  const toStatusFlag = (status: CategoryItem["status"]): 0 | 1 => {
-    if (status === 0 || status === "0" || status === "inactive") return 0;
-    return 1;
-  };
-
-  const toStatusLabel = (status: CategoryItem["status"]) =>
-    toStatusFlag(status) === 1 ? "active" : "inactive";
-
-  const [isOpen, setIsOpen] = useState(false);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [selected, setSelected] = useState<number[]>([]);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | StatusFlag>("all");
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    status: 1 as 0 | 1,
-  });
+  const [editing, setEditing] = useState<Category | null>(null);
+  const [form, setForm] = useState<CategoryForm>(initialForm);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const fetchCategories = async () => {
+  const loadCategories = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/categories`);
-      const data = await res.json();
-      if (data.success) setCategories(data.data.categories);
-    } catch {
-      toast.error("Server error", {
-        description: "Could not fetch categories.",
+      const response = await getCategories();
+      setCategories(response.categories);
+    } catch (error) {
+      toast.error("Failed to fetch categories", {
+        description: parseApiError(error).message,
       });
     } finally {
       setLoading(false);
@@ -70,402 +98,442 @@ export default function DishManagement() {
   };
 
   useEffect(() => {
-    fetchCategories();
+    void loadCategories();
   }, []);
 
-  const openAdd = () => {
-    setEditingId(null);
-    setForm({ name: "", description: "", status: 1 });
-    setIsOpen(true);
+  const filtered = useMemo(
+    () => filterCategoriesLocally(categories, search, statusFilter),
+    [categories, search, statusFilter],
+  );
+
+  const paginated = useMemo(() => paginateCategories(filtered, page, PAGE_SIZE), [filtered, page]);
+  const totalPages = Math.max(1, Math.ceil(paginated.total / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const openCreateForm = () => {
+    setEditing(null);
+    setForm(initialForm);
+    setFormError(null);
   };
 
-  const openEdit = (cat: CategoryItem) => {
-    setEditingId(cat.categories_id);
+  const openEditForm = (category: Category) => {
+    setEditing(category);
     setForm({
-      name: cat.name,
-      description: cat.description,
-      status: toStatusFlag(cat.status),
+      name: category.name,
+      description: category.description,
+      status: category.status,
     });
-    setIsOpen(true);
+    setFormError(null);
   };
 
-  const handleSave = async () => {
-    if (!form.name.trim()) {
-      toast.warning("Name required", {
-        description: "Please enter a category name.",
-      });
+  const validateForm = () => {
+    const trimmedName = form.name.trim();
+
+    if (!trimmedName) {
+      throw new Error("Category name is required.");
+    }
+
+    if (trimmedName.length < 3) {
+      throw new Error("Category name must be at least 3 characters.");
+    }
+
+    if (!(form.status === 0 || form.status === 1)) {
+      throw new Error("Category status must be 0 or 1.");
+    }
+  };
+
+  const showSystemToast = (description: string) => {
+    toast.success("SYSTEM NOTIFICATION", {
+      description,
+    });
+  };
+
+  const onSave = async () => {
+    try {
+      validateForm();
+      setFormError(null);
+    } catch (error) {
+      const message = parseApiError(error).message;
+      setFormError(message);
+      toast.error("Validation failed", { description: message });
       return;
     }
+
     setSaving(true);
     try {
-      const url =
-        editingId !== null
-          ? `${API_BASE}/categories/${editingId}`
-          : `${API_BASE}/categories`;
-      const method = editingId ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          status: form.status,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(editingId ? "Category Updated" : "Category Created");
-        fetchCategories();
-        setIsOpen(false);
+      if (editing) {
+        await updateCategory(editing.categories_id, form);
       } else {
-        toast.error("Failed", { description: "Something went wrong." });
+        await createCategory(form);
       }
-    } catch {
-      toast.error("Server error", { description: "Could not save category." });
+
+      showSystemToast(editing ? "Category updated successfully" : "Category created successfully");
+      openCreateForm();
+      await loadCategories();
+    } catch (error) {
+      toast.error("Category save failed", {
+        description: parseApiError(error).message,
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Delete this category?")) return;
+  const onDelete = async (categoryId: number) => {
+    if (!window.confirm("Delete this category?")) {
+      return;
+    }
+
     try {
-      await fetch(`${API_BASE}/categories/${id}`, { method: "DELETE" });
-      toast.success("Category Deleted");
-      fetchCategories();
-    } catch {
-      toast.error("Error", { description: "Could not delete category." });
+      await deleteCategory(categoryId);
+      showSystemToast("Category deleted successfully");
+      await loadCategories();
+    } catch (error) {
+      toast.error("Delete failed", {
+        description: parseApiError(error).message,
+      });
     }
   };
 
-  // Filter + search
-  const filtered = categories.filter((c) => {
-    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || toStatusLabel(c.status) === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const nameHint =
+    form.name.trim().length > 0 && form.name.trim().length < 3
+      ? "Category name must be at least 3 characters."
+      : null;
 
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const inlineError = formError ?? nameHint;
+  const editorId = editing ? `CAT_${String(editing.categories_id).padStart(3, "0")}` : "CAT_001";
 
-  // Select all on current page
-  const allSelected =
-    paginated.length > 0 &&
-    paginated.every((c) => selected.includes(c.categories_id));
-  const toggleSelectAll = () => {
-    const ids = paginated.map((c) => c.categories_id);
-    setSelected(
-      allSelected
-        ? selected.filter((id) => !ids.includes(id))
-        : [...new Set([...selected, ...ids])],
-    );
-  };
-  const toggleSelect = (id: number) =>
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
-    );
+  const recentActivity = useMemo(() => {
+    return [...categories]
+      .sort((left, right) => {
+        const leftTime = toDateKey(left.updated_at) || toDateKey(left.created_at);
+        const rightTime = toDateKey(right.updated_at) || toDateKey(right.created_at);
+        return rightTime - leftTime || right.categories_id - left.categories_id;
+      })
+      .slice(0, 4)
+      .map((category) => {
+        const changedAt = category.updated_at || category.created_at;
+        const changedAction =
+          category.updated_at && category.updated_at !== category.created_at ? "Modified" : "Added";
 
-  // Page number list
-  const pageNums = () => {
-    const nums: (number | "...")[] = [];
-    if (totalPages <= 5) {
-      for (let i = 1; i <= totalPages; i++) nums.push(i);
-    } else {
-      nums.push(1, 2, 3);
-      if (page > 4) nums.push("...");
-      if (page > 3 && page < totalPages - 1) nums.push(page);
-      nums.push("...", totalPages);
-    }
-    return [...new Set(nums)];
-  };
+        return {
+          id: category.categories_id,
+          action: `${changedAction} '${category.name}'`,
+          at: formatActivityTimestamp(changedAt),
+        };
+      });
+  }, [categories]);
 
   return (
-    <div className="space-y-4">
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-zinc-900 tracking-tight">
-            Categories
-          </h1>
-          <p className="text-xs font-medium text-zinc-400 uppercase tracking-widest mt-0.5">
-            Master Menu Classification System
+    <div className="dish-management-page space-y-6 text-[#3a3b3f]">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-[0.14em] text-zinc-400">
+            Inventory <span className="mx-1 text-zinc-300">{">"}</span>{" "}
+            <span className="text-[#ff6b1a]">Categories</span>
           </p>
+          <h1 className="text-xl font-semibold uppercase tracking-[0.08em] text-[#323238]">Categories</h1>
+          <p className="text-sm text-zinc-500">Manage your kitchen taxonomy and menu structure.</p>
         </div>
-        <Button onClick={openAdd} className="gap-2 shrink-0">
-          + Add Category
+        <Button
+          type="button"
+          onClick={openCreateForm}
+          className="h-11 rounded-none border border-[#ff6b1a] bg-[#ff6b1a] px-6 text-sm uppercase tracking-[0.07em] text-white shadow-[0_2px_0_0_#9f4510] hover:bg-[#ed5f15]"
+        >
+          <RiAddLine className="size-4" />
+          Add Category
         </Button>
       </div>
 
-      {/* ── Main card ── */}
-      <div className=" border border-zinc-200 bg-white overflow-hidden">
-        {/* Search + filters */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-100">
-          <div className="relative flex-1 max-w-xs">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="border border-[#efcfb2] bg-[#f7f4f2] p-6">
+          <div className="mb-5 flex items-center justify-between border-b border-[#ebd8c7] pb-4">
+            <h2 className="text-base uppercase tracking-[0.06em] text-[#34333a]">
+              {editing ? "Edit Category" : "Add Category"}
+            </h2>
+            <p className="text-xs font-semibold tracking-[0.07em] text-zinc-400">MOD_ID: {editorId}</p>
+          </div>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label htmlFor="category-name" className="text-sm font-semibold uppercase tracking-[0.06em]">
+                Category Name *
+              </label>
+              <input
+                id="category-name"
+                value={form.name}
+                onChange={(event) => {
+                  setForm((prev) => ({ ...prev, name: event.target.value }));
+                  setFormError(null);
+                }}
+                placeholder="Sea"
+                className="h-11 w-full border border-[#e6bb95] bg-white px-3 text-[15px] outline-none transition focus:border-[#ff6b1a] focus:ring-1 focus:ring-[#ff6b1a]/40"
+              />
+              {inlineError && (
+                <p className="flex items-center gap-1.5 text-sm text-[#c93333]">
+                  <RiErrorWarningFill className="size-4 shrink-0" />
+                  {inlineError}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="category-description"
+                className="text-sm font-semibold uppercase tracking-[0.06em]"
+              >
+                Description
+              </label>
+              <textarea
+                id="category-description"
+                value={form.description}
+                onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+                placeholder="Brief summary of items in this category..."
+                className="min-h-28 w-full border border-[#e6bb95] bg-white px-3 py-2.5 text-[15px] outline-none transition focus:border-[#ff6b1a] focus:ring-1 focus:ring-[#ff6b1a]/40"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-semibold uppercase tracking-[0.06em]">Category Status</p>
+              <div className="flex flex-wrap items-center gap-2 text-[15px] font-medium uppercase tracking-[0.05em]">
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, status: 1 }))}
+                  className={
+                    form.status === 1 ? "text-[#ff6b1a]" : "text-zinc-400 hover:text-zinc-600"
+                  }
+                >
+                  Active
+                </button>
+                <span className="text-zinc-300">/</span>
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, status: 0 }))}
+                  className={
+                    form.status === 0 ? "text-[#ff6b1a]" : "text-zinc-400 hover:text-zinc-600"
+                  }
+                >
+                  Inactive
+                </button>
+              </div>
+            </div>
+
+            <div className="border-t border-[#ebd8c7] pt-5">
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  onClick={() => void onSave()}
+                  disabled={saving || Boolean(nameHint)}
+                  className="h-11 rounded-none border border-[#ff6b1a] bg-[#ff6b1a] px-8 text-sm uppercase tracking-[0.06em] text-white shadow-[0_2px_0_0_#9f4510] hover:bg-[#ed5f15]"
+                >
+                  {saving ? "Saving..." : editing ? "Update Category" : "Save Category"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={openCreateForm}
+                  disabled={saving}
+                  className="h-11 rounded-none border-[#e6bb95] px-8 text-sm uppercase tracking-[0.06em] text-zinc-600 hover:bg-[#f3ece6]"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside className="space-y-4">
+          <section className="border border-[#efcfb2] bg-[#f2ebe3] p-5">
+            <div className="mb-3 flex items-center gap-2 text-[#b0430f]">
+              <RiInformationLine className="size-4" />
+              <h3 className="text-base uppercase tracking-[0.06em]">Guidance</h3>
+            </div>
+            <ul className="space-y-2.5 pl-4 text-[15px] leading-6 text-[#5a5048]">
+              <li className="list-disc marker:text-[#ff6b1a]">
+                Categories help organize kitchen displays and reporting modules.
+              </li>
+              <li className="list-disc marker:text-[#ff6b1a]">
+                Active categories will appear immediately on all POS terminals.
+              </li>
+              <li className="list-disc marker:text-[#ff6b1a]">
+                Use clear, industry-standard naming conventions for better menu engineering.
+              </li>
+            </ul>
+          </section>
+
+          <section className="border border-[#12151d] bg-[#10131c] p-5 text-zinc-200">
+            <h3 className="mb-3 text-base uppercase tracking-[0.06em] text-[#ff8a3d]">Recent Activity</h3>
+            <div className="space-y-3">
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-zinc-400">No category activity yet.</p>
+              ) : (
+                recentActivity.map((activity) => (
+                  <div key={activity.id} className="border-l-2 border-[#ff6b1a]/70 pl-3">
+                    <p className="text-xs text-zinc-400">{activity.at}</p>
+                    <p className="text-sm">{activity.action}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-end gap-3 border border-[#efcfb2] bg-white p-4">
+          <div className="min-w-60 flex-1 space-y-1">
+            <label htmlFor="category-search" className="text-sm font-semibold text-zinc-700">
+              Search
+            </label>
             <input
+              id="category-search"
+              className="h-11 w-full border border-[#e6bb95] bg-white px-3 text-sm outline-none transition focus:border-[#ff6b1a] focus:ring-1 focus:ring-[#ff6b1a]/40"
+              placeholder="Search by name or description"
               value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
+              onChange={(event) => {
+                setSearch(event.target.value);
                 setPage(1);
               }}
-              placeholder="Search categories..."
-              className="h-9 w-full  border border-zinc-200 bg-zinc-50 pl-8 pr-3 text-sm text-zinc-800 outline-none placeholder:text-zinc-400 focus:border-[#CC543A] focus:ring-1 focus:ring-[#CC543A]/20 transition"
             />
           </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              const value = e.target.value;
-              setStatusFilter(
-                value === "active" || value === "inactive" ? value : "all",
-              );
-              setPage(1);
-            }}
-            className="h-9  border border-zinc-200 bg-zinc-50 px-3 text-xs font-medium text-zinc-600 outline-none focus:border-primary transition"
-            title="Filter categories by status"
-          >
-            <option value="all">ALL STATUSES</option>
-            <option value="active">ACTIVE</option>
-            <option value="inactive">INACTIVE</option>
-          </select>
-
-          <button className="flex h-9 items-center gap-2 border border-zinc-200 bg-zinc-50 px-3 text-xs font-medium text-zinc-600 hover:bg-zinc-100 transition">
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+          <div className="min-w-48 space-y-1">
+            <label htmlFor="statusFilter" className="text-sm font-semibold text-zinc-700">
+              Status Filter
+            </label>
+            <select
+              id="statusFilter"
+              className="h-11 w-full border border-[#e6bb95] bg-white px-3 text-sm outline-none transition focus:border-[#ff6b1a] focus:ring-1 focus:ring-[#ff6b1a]/40"
+              value={String(statusFilter)}
+              onChange={(event) => {
+                const value = event.target.value;
+                setStatusFilter(value === "all" ? "all" : Number(value) === 1 ? 1 : 0);
+                setPage(1);
+              }}
             >
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-            </svg>
-            Advanced
-          </button>
+              <option value="all">All</option>
+              <option value="1">Active</option>
+              <option value="0">Inactive</option>
+            </select>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              void loadCategories();
+            }}
+            disabled={loading}
+            className="h-11 rounded-none border-[#e6bb95] px-6 text-sm uppercase tracking-[0.06em] hover:bg-[#f3ece6]"
+          >
+            {loading ? "Refreshing..." : "Refresh"}
+          </Button>
         </div>
 
-        {/* Table */}
-        {loading ? (
-          <Loader />
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50/60">
-                <th className="w-10 px-4 py-3">
-                  <input
-                    placeholder="Search categories..."
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4  border-zinc-300 accent-primary"
-                  />
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">
-                  Category Name
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide">
-                  Item Count
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-zinc-500 uppercase tracking-wide">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginated.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-12 text-center text-sm text-zinc-400"
-                  >
+        <div className="border border-[#efcfb2] bg-white p-2">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5}>
+                    <Loader message="Loading categories..." className="min-h-[80px]" />
+                  </TableCell>
+                </TableRow>
+              ) : paginated.items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-zinc-500">
                     No categories found.
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
-                paginated.map((cat) => {
-                  const statusFlag = toStatusFlag(cat.status);
-                  const statusStr = statusFlag === 1 ? "active" : "inactive";
-                  const inactive = statusFlag === 0;
-                  return (
-                    <tr
-                      key={cat.categories_id}
-                      className={`border-b border-zinc-100 last:border-0 transition hover:bg-zinc-50/60 ${inactive ? "opacity-50" : ""}`}
-                    >
-                      <td className="px-4 py-3.5">
-                        <input
-                          title="id"
-                          type="checkbox"
-                          checked={selected.includes(cat.categories_id)}
-                          onChange={() => toggleSelect(cat.categories_id)}
-                          className="h-4 w-4 border-zinc-300 accent-primary"
-                        />
-                      </td>
-                      <td className="px-4 py-3.5 font-medium text-zinc-800">
-                        {cat.name}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span
-                          className={`inline-flex items-center border px-2 py-0.5 text-[11px] font-bold tracking-wide ${
-                            statusFlag === 1
-                              ? "border-primary/40 bg-primary/5 text-primary"
-                              : "border-zinc-300 bg-zinc-50 text-zinc-400"
-                          }`}
+                paginated.items.map((category) => (
+                  <TableRow key={category.categories_id}>
+                    <TableCell>{category.categories_id}</TableCell>
+                    <TableCell>{category.name}</TableCell>
+                    <TableCell className="max-w-[260px] truncate">{category.description}</TableCell>
+                    <TableCell>
+                      <Badge variant={category.status === 1 ? "default" : "secondary"} className="rounded-none">
+                        {statusLabel(category.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="rounded-none border-[#f1c8a8] px-2.5 text-[#d15a15] hover:bg-[#fff1e5]"
+                          onClick={() => openEditForm(category)}
                         >
-                          {statusStr.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 font-semibold text-zinc-700">
-                        {cat.item_count ?? "—"}
-                      </td>
-
-                      <td className="px-4 py-3.5">
-                        <div className="flex justify-end items-center gap-2">
-                          <button
-                            onClick={() => openEdit(cat)}
-                            className=" border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 transition"
-                          >
-                            Edit
-                          </button>
-                          <DeleteDialog
-                            title="Delete Category"
-                            description="This will permanently remove the category and all its items."
-                            onDelete={() => handleDelete(cat.categories_id)}
-                            trigger={<button>Delete</button>}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                          <RiEdit2Line className="size-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="rounded-none border-[#f1c8a8] px-2.5 text-[#b8472f] hover:bg-[#fff1e5]"
+                          onClick={() => {
+                            void onDelete(category.categories_id);
+                          }}
+                        >
+                          <RiDeleteBinLine className="size-4" />
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
-            </tbody>
-          </table>
-        )}
-
-        {/* Footer — count + pagination */}
-        {!loading && filtered.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100">
-            <p className="text-xs text-zinc-400 uppercase tracking-wide">
-              Showing {(page - 1) * PAGE_SIZE + 1}–
-              {Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}{" "}
-              categories
-            </p>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="flex h-7 w-7 items-center justify-center  border border-zinc-200 text-zinc-400 hover:bg-zinc-50 disabled:opacity-30 transition"
-              >
-                ‹
-              </button>
-              {pageNums().map((n, i) =>
-                n === "..." ? (
-                  <span
-                    key={`dots-${i}`}
-                    className="px-1 text-zinc-400 text-xs"
-                  >
-                    ...
-                  </span>
-                ) : (
-                  <button
-                    key={n}
-                    onClick={() => setPage(n as number)}
-                    className={`flex h-7 w-7 items-center justify-center  text-xs font-medium transition ${
-                      page === n
-                        ? "bg-primary text-white"
-                        : "border border-zinc-200 text-zinc-500 hover:bg-zinc-50"
-                    }`}
-                  >
-                    {n}
-                  </button>
-                ),
-              )}
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="flex h-7 w-7 items-center justify-center  border border-zinc-200 text-zinc-400 hover:bg-zinc-50 disabled:opacity-30 transition"
-              >
-                ›
-              </button>
-            </div>
-          </div>
-        )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
-      {/* ── Dialog ── */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingId ? "Edit Category" : "Add Category"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Input
-                label="Name"
-                id="name"
-                placeholder="Enter name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <Textarea
-                label="Description"
-                id="description"
-                placeholder="Enter description"
-                value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <RadioGroup
-                value={String(form.status)}
-                onValueChange={(v) =>
-                  setForm({ ...form, status: v === "1" ? 1 : 0 })
-                }
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="1" id="active" />
-                  <Label htmlFor="active">Active</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="0" id="inactive" />
-                  <Label htmlFor="inactive">Inactive</Label>
-                </div>
-              </RadioGroup>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Cancel
-            </Button>
-            <Button disabled={saving} onClick={handleSave}>
-              {saving ? "Saving..." : "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <div className="flex items-center justify-between text-sm text-zinc-600">
+        <p>
+          Showing {paginated.items.length} of {paginated.total}
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="rounded-none border-[#e6bb95] hover:bg-[#f3ece6]"
+            disabled={page <= 1}
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          >
+            Prev
+          </Button>
+          <span>
+            Page {page} / {totalPages}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="rounded-none border-[#e6bb95] hover:bg-[#f3ece6]"
+            disabled={page >= totalPages}
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

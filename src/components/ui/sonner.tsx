@@ -1,47 +1,62 @@
-import { useTheme } from "next-themes"
-import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { RiCheckboxCircleLine, RiInformationLine, RiErrorWarningLine, RiCloseCircleLine, RiLoaderLine } from "@remixicon/react"
+import { Toaster as Sonner, type ToasterProps } from "sonner";
+import {
+  RiCheckboxCircleFill,
+  RiCloseCircleFill,
+  RiErrorWarningFill,
+  RiInformationFill,
+  RiLoader4Line,
+} from "@remixicon/react";
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
-
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
-      className="toaster group"
+      position="bottom-right"
+      closeButton
+      expand={false}
+      visibleToasts={4}
+      className="toaster"
       icons={{
         success: (
-          <RiCheckboxCircleLine className="size-4" />
+          <span className="app-toast-icon-wrap">
+            <RiCheckboxCircleFill className="size-4" />
+          </span>
         ),
         info: (
-          <RiInformationLine className="size-4" />
+          <span className="app-toast-icon-wrap">
+            <RiInformationFill className="size-4" />
+          </span>
         ),
         warning: (
-          <RiErrorWarningLine className="size-4" />
+          <span className="app-toast-icon-wrap">
+            <RiErrorWarningFill className="size-4" />
+          </span>
         ),
         error: (
-          <RiCloseCircleLine className="size-4" />
+          <span className="app-toast-icon-wrap">
+            <RiCloseCircleFill className="size-4" />
+          </span>
         ),
         loading: (
-          <RiLoaderLine className="size-4 animate-spin" />
+          <span className="app-toast-icon-wrap">
+            <RiLoader4Line className="size-4 animate-spin" />
+          </span>
         ),
       }}
-      style={
-        {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
-        } as React.CSSProperties
-      }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast: "app-toast",
+          title: "app-toast-title",
+          description: "app-toast-description",
+          closeButton: "app-toast-close",
+          success: "app-toast-success",
+          error: "app-toast-error",
+          warning: "app-toast-warning",
+          info: "app-toast-info",
         },
       }}
       {...props}
     />
-  )
-}
+  );
+};
 
-export { Toaster }
+export { Toaster };
