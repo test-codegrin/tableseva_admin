@@ -583,11 +583,10 @@ export default function TableManagement() {
                   key={pageNumber}
                   type="button"
                   size="icon-xs"
-                  className={`rounded-none border ${
-                    active
+                  className={`rounded-none border ${active
                       ? "border-[#f36c21] bg-[#f36c21] text-white"
                       : "border-[#e8cab0] bg-white text-[#695a4e] hover:bg-[#f8ede2]"
-                  }`}
+                    }`}
                   onClick={() => setPage(pageNumber)}
                 >
                   {pageNumber}
@@ -734,11 +733,10 @@ export default function TableManagement() {
                   key={choice}
                   type="button"
                   variant="ghost"
-                  className={`h-11 rounded-none border-r border-[#efd0b4] text-xs uppercase tracking-[0.07em] last:border-r-0 ${
-                    active
+                  className={`h-11 rounded-none border-r border-[#efd0b4] text-xs uppercase tracking-[0.07em] last:border-r-0 ${active
                       ? "bg-[#a95312] text-white hover:bg-[#94490f]"
                       : "bg-white text-[#6e5d50] hover:bg-[#f9f0e8]"
-                  }`}
+                    }`}
                   onClick={() => applyAvailabilityChoice(choice)}
                   disabled={saving}
                 >
@@ -817,30 +815,69 @@ export default function TableManagement() {
       {screenMode === "list" ? renderListScreen() : renderEditorScreen()}
 
       <Dialog open={Boolean(qrPreviewTable)} onOpenChange={(open) => !open && setQrPreviewTable(null)}>
-        <DialogContent className="max-w-md rounded-none border-[#efcfb2]">
-          <DialogHeader>
-            <DialogTitle>Table #{qrPreviewTable?.table_number} QR Code</DialogTitle>
+        <DialogContent className="gap-0 w-99.5 overflow-hidden rounded-none border-[#efcfb2] p-0">
+          {/* Orange header bar */}
+          <DialogHeader className="flex flex-row items-center justify-between bg-[#F97316] px-4 py-0 h-11 space-y-0">
+            <DialogTitle className="text-[11px] font-semibold uppercase tracking-widest text-white">
+              Preview QR Code
+            </DialogTitle>
           </DialogHeader>
+
           {qrPreviewTable && (
-            <div className="space-y-4">
-              <img
-                src={getTableQrImageUrl(qrPreviewTable.table_id)}
-                alt={`Table ${qrPreviewTable.table_number} QR`}
-                className="mx-auto border border-[#efcfb2] p-2"
-              />
-              <DialogFooter>
-                <Button
+            <>
+              <div className="px-6 pt-6 pb-0 space-y-4">
+                {/* Table label */}
+                <div className="text-center space-y-1">
+                  <p className="text-[10px] uppercase tracking-widest text-[#9a8b7f]">Currently viewing</p>
+                  <p className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#9D4300]">
+                    Table {qrPreviewTable.table_number}
+                  </p>
+                </div>
+
+                {/* QR image with corner brackets */}
+                <div className="relative max-w-73 mx-auto border border-[#9D4300] p-[16px]">
+                  {/* Corner brackets */}
+                  <span className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-[#9D4300]" />
+                  <span className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-[#9D4300]" />
+                  <span className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-[#9D4300]" />
+                  <span className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-[#9D4300]" />
+
+                  <div className="bg-[#1a1a1a] p-3 flex items-center justify-center">
+                    <img
+                      src={getTableQrImageUrl(qrPreviewTable.table_id)}
+                      alt={`Table ${qrPreviewTable.table_number} QR`}
+                      className="w-48 h-48 object-contain"
+                    />
+                  </div>
+                </div>
+
+                {/* Direct link */}
+                <p className="text-xs text-[#584237] text-center leading-relaxed">
+                  "Direct link to:<br />
+                  menu.scanorderdone.com/table/{String(qrPreviewTable.table_number).toLowerCase()}"
+                </p>
+
+                {/* Full-width download button */}
+                <button
                   type="button"
-                  variant="outline"
-                  className={neutralButtonClass}
-                  onClick={() => {
-                    void downloadQr(qrPreviewTable);
-                  }}
+                  className="w-full cursor-pointer h-11 bg-[#F97316] text-white text-[11px] font-semibold uppercase tracking-[0.1em] flex items-center justify-center gap-2 transition-colors"
+                  onClick={() => { void downloadQr(qrPreviewTable); }}
                 >
-                  Download QR
-                </Button>
-              </DialogFooter>
-            </div>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Download PNG
+                </button>
+              </div>
+
+              {/* Footer with format info */}
+              <div className="flex justify-between border-t bg-[#FFF1EB] border-[#E0C0B1] px-4 py-2.5 mt-3">
+                <span className="text-[10px] uppercase tracking-[0.07em] text-[#9a8b7f]">Format: 2048 × 2048 px</span>
+                <span className="text-[10px] uppercase tracking-[0.07em] text-[#9a8b7f]">ECC: Level H</span>
+              </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

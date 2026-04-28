@@ -32,7 +32,9 @@ const mapTable = (value: unknown): VendorTable => {
     payload.available ??
     Number(toBooleanFlag(payload.is_available_now, false));
   const mappedStatus =
-    rawStatus === undefined || rawStatus === null ? undefined : toStatusFlag(rawStatus, 1);
+    rawStatus === undefined || rawStatus === null
+      ? undefined
+      : toStatusFlag(rawStatus, 1);
   const mappedAvailability =
     rawAvailability === undefined || rawAvailability === null
       ? undefined
@@ -100,11 +102,19 @@ const extractTableDetail = (value: unknown): VendorTable => {
     return mapTable(value.data.table);
   }
 
-  if (isRecord(value.data) && Array.isArray(value.data.tables) && value.data.tables.length > 0) {
+  if (
+    isRecord(value.data) &&
+    Array.isArray(value.data.tables) &&
+    value.data.tables.length > 0
+  ) {
     return mapTable(value.data.tables[0]);
   }
 
-  if (isRecord(value.data) && Array.isArray(value.data.data) && value.data.data.length > 0) {
+  if (
+    isRecord(value.data) &&
+    Array.isArray(value.data.data) &&
+    value.data.data.length > 0
+  ) {
     return mapTable(value.data.data[0]);
   }
 
@@ -181,7 +191,10 @@ export const createTable = async (payload: UpsertTablePayload) => {
   };
 };
 
-export const updateTable = async (tableId: number, payload: UpsertTablePayload) => {
+export const updateTable = async (
+  tableId: number,
+  payload: UpsertTablePayload,
+) => {
   const response = await requestApi<unknown>({
     method: "put",
     url: `/tables/${tableId}`,
@@ -204,7 +217,10 @@ export const toggleTableStatus = async (tableId: number) => {
   };
 };
 
-export const updateTableAvailability = async (tableId: number, is_available: StatusFlag) => {
+export const updateTableAvailability = async (
+  tableId: number,
+  is_available: StatusFlag,
+) => {
   if (!(is_available === 0 || is_available === 1)) {
     throw new Error("Table availability must be 0 or 1.");
   }
@@ -235,8 +251,9 @@ const mapQrRecord = (value: unknown): TableQrCodeRecord => {
   const payload = isRecord(value) ? value : {};
   return {
     table_id: toNumber(payload.table_id),
-    table_number: toNumber(payload.table_number),
+    table_number: toNumber(payload.table_number),   // kept for type compat
     qr_code_url: toNullableString(payload.qr_code_url),
+    table_name: toString(payload.table_name ?? payload.table_number), // ← FIX
   };
 };
 
@@ -251,7 +268,9 @@ export const getTableQrCodes = async () => {
     ? value.map(mapQrRecord)
     : isRecord(value) && Array.isArray(value.tables)
       ? value.tables.map(mapQrRecord)
-      : isRecord(value) && isRecord(value.data) && Array.isArray(value.data.tables)
+      : isRecord(value) &&
+          isRecord(value.data) &&
+          Array.isArray(value.data.tables)
         ? value.data.tables.map(mapQrRecord)
         : ensureArray<TableQrCodeRecord>([]);
 
@@ -260,4 +279,3 @@ export const getTableQrCodes = async () => {
 
 export const getTableQrImageUrl = (tableId: number) =>
   `${API_BASE_URL.replace(/\/$/, "")}/tables/${tableId}/qr`;
-

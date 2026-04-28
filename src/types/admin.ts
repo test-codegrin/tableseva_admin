@@ -123,6 +123,7 @@ export interface UpsertTablePayload {
 }
 
 export interface TableQrCodeRecord {
+  table_name: ReactNode;
   table_id: number;
   table_number: number;
   qr_code_url?: string | null;
