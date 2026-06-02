@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type KeyboardEvent,
+} from "react";
 import {
   RiAddLine,
   RiArrowDownSLine,
@@ -55,7 +63,8 @@ import type {
 
 type ScreenMode = "list" | "create" | "edit";
 
-type ItemOptionForm = ItemOption & {
+type ItemOptionForm = Omit<ItemOption, "price_delta"> & {
+  price_delta: string;
   status?: StatusFlag;
 };
 
@@ -75,6 +84,8 @@ type ItemForm = {
 };
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
+const DECIMAL_INPUT_PATTERN = /^\d*\.?\d{0,2}$/;
 
 // ─── Photo URL helper ────────────────────────────────────────────────────────
 // If the stored URL already contains a host (http/https) we use it as-is.
@@ -92,7 +103,7 @@ const resolvePhotoUrl = (url: string | null | undefined): string | null => {
 
 const emptyOption = (): ItemOptionForm => ({
   name: "",
-  price_delta: 0,
+  price_delta: "",
   status: 1,
 });
 
@@ -104,6 +115,25 @@ const emptyOptionGroup = (): ItemOptionGroupForm => ({
   options: [emptyOption()],
 });
 
+const isMeaningfulOption = (option: ItemOptionForm) =>
+  Boolean(option.option_id) ||
+  option.is_deleted === true ||
+  option.name.trim().length > 0 ||
+  Number(option.price_delta || 0) !== 0 ||
+  (option.status ?? 1) !== 1;
+
+const isValidDecimalInput = (value: string) =>
+  value === "" || DECIMAL_INPUT_PATTERN.test(value);
+
+const isMeaningfulOptionGroup = (group: ItemOptionGroupForm) =>
+  Boolean(group.group_id) ||
+  group.is_deleted === true ||
+  group.name.trim().length > 0 ||
+  group.multiple_select === 1 ||
+  group.is_required === 1 ||
+  (group.status ?? 1) !== 1 ||
+  group.options.some(isMeaningfulOption);
+
 const createInitialForm = (): ItemForm => ({
   categories_id: 0,
   name: "",
@@ -112,7 +142,7 @@ const createInitialForm = (): ItemForm => ({
   status: 1,
   photo: null,
   existing_photo_url: null,
-  option_groups: [emptyOptionGroup()],
+  option_groups: [],
 });
 
 const toFormFromItem = (item: Item): ItemForm => {
@@ -138,12 +168,12 @@ const toFormFromItem = (item: Item): ItemForm => {
             options: group.options.map((option) => ({
               option_id: option.option_id,
               name: option.name,
-              price_delta: option.price_delta,
+              price_delta: String(option.price_delta),
               status: 1,
               is_deleted: false,
             })),
           }))
-        : [emptyOptionGroup()],
+        : [],
   };
 };
 
@@ -220,9 +250,12 @@ export default function ItemName() {
   const [selectedPhotoPreviewUrl, setSelectedPhotoPreviewUrl] = useState<
     string | null
   >(null);
+  const [imagePreviewLoadFailed, setImagePreviewLoadFailed] = useState(false);
+  const [isPhotoDragActive, setIsPhotoDragActive] = useState(false);
   const [collapsedGroupKeys, setCollapsedGroupKeys] = useState<Set<string>>(
     new Set(),
   );
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -306,6 +339,10 @@ export default function ItemName() {
   // Resolved URLs used for <img> tags
   const imagePreviewUrl =
     selectedPhotoPreviewUrl || resolvePhotoUrl(form.existing_photo_url) || null;
+
+  useEffect(() => {
+    setImagePreviewLoadFailed(false);
+  }, [imagePreviewUrl]);
 
   const getCategoryName = (categoryId: number) =>
     categories.find((category) => category.categories_id === categoryId)
@@ -469,11 +506,8 @@ export default function ItemName() {
     }
 
     const nonDeletedGroups = form.option_groups.filter(
-      (group) => !group.is_deleted,
+      (group) => !group.is_deleted && isMeaningfulOptionGroup(group),
     );
-    if (nonDeletedGroups.length === 0) {
-      throw new Error("At least one customization group is required.");
-    }
 
     nonDeletedGroups.forEach((group, groupIdx) => {
       if (!group.name.trim()) {
@@ -483,9 +517,9 @@ export default function ItemName() {
       }
 
       const nonDeletedOptions = group.options.filter(
-        (option) => !option.is_deleted,
+        (option) => !option.is_deleted && isMeaningfulOption(option),
       );
-      if (nonDeletedOptions.length === 0) {
+      if (!group.group_id && nonDeletedOptions.length === 0) {
         throw new Error(
           `Customization group ${groupIdx + 1} must contain at least one choice.`,
         );
@@ -514,13 +548,25 @@ export default function ItemName() {
 
     setSaving(true);
     try {
+      const normalizedOptionGroups = form.option_groups
+        .filter((group) => isMeaningfulOptionGroup(group))
+        .map((group) => ({
+          ...group,
+          options: group.options
+            .filter((option) => isMeaningfulOption(option))
+            .map((option) => ({
+              ...option,
+              price_delta: Number(option.price_delta || 0),
+            })),
+        }));
+
       const payload = {
         name: form.name,
         description: form.description,
         price: Number(form.price),
         status: form.status,
         photo: form.photo,
-        option_groups: form.option_groups,
+        option_groups: normalizedOptionGroups,
       };
 
       const response = editing
@@ -580,7 +626,83 @@ export default function ItemName() {
 
   const onSelectPhoto = (event: ChangeEvent<HTMLInputElement>) => {
     const selected = event.target.files?.[0] || null;
+    if (!selected) {
+      return;
+    }
+
+    if (!selected.type.startsWith("image/")) {
+      toast.error("Invalid photo", {
+        description: "Please choose an image file.",
+      });
+      event.target.value = "";
+      return;
+    }
+
+    if (selected.size > MAX_PHOTO_SIZE_BYTES) {
+      toast.error("Invalid photo", {
+        description: "Photo must be 5MB or smaller.",
+      });
+      event.target.value = "";
+      return;
+    }
+
     setForm((prev) => ({ ...prev, photo: selected }));
+    event.target.value = "";
+  };
+
+  const openPhotoPicker = () => {
+    if (!saving) {
+      photoInputRef.current?.click();
+    }
+  };
+
+  const onPhotoDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    setIsPhotoDragActive(false);
+
+    if (saving) {
+      return;
+    }
+
+    const selected = event.dataTransfer.files?.[0];
+    if (!selected) {
+      return;
+    }
+
+    if (!selected.type.startsWith("image/")) {
+      toast.error("Invalid photo", {
+        description: "Please drop an image file.",
+      });
+      return;
+    }
+
+    if (selected.size > MAX_PHOTO_SIZE_BYTES) {
+      toast.error("Invalid photo", {
+        description: "Photo must be 5MB or smaller.",
+      });
+      return;
+    }
+
+    setForm((prev) => ({ ...prev, photo: selected }));
+  };
+
+  const onPhotoDragOver = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    if (!saving) {
+      setIsPhotoDragActive(true);
+    }
+  };
+
+  const onPhotoDragLeave = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    setIsPhotoDragActive(false);
+  };
+
+  const onPhotoKeyDown = (event: KeyboardEvent<HTMLLabelElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openPhotoPicker();
+    }
   };
 
   const renderListScreen = () => (
@@ -955,21 +1077,12 @@ export default function ItemName() {
     return (
       <section className="space-y-0 border border-[#efd1b4] bg-[#fffdfa]">
         {isEdit && formIsDirty && (
-          <div className="flex items-center justify-between border-b border-[#f36c21] bg-[#f36c21] px-4 py-2 text-xs font-semibold uppercase tracking-[0.06em] text-white">
+          <div className="border-b border-[#f36c21] bg-[#f36c21] px-4 py-2 text-xs font-semibold uppercase tracking-[0.06em] text-white">
             <span>You have unsaved changes</span>
-            <Button
-              type="button"
-              size="xs"
-              className="h-7 rounded-none border border-[#f9c7a4] bg-[#fff5ed] px-3 text-[#b95519] hover:bg-white"
-              onClick={() => void onSave()}
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Update Item"}
-            </Button>
           </div>
         )}
 
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#efd8c6] px-4 py-4">
+        <div className="border-b border-[#efd8c6] px-4 py-4">
           <div>
             <h2 className="text-[16px] font-medium uppercase tracking-[0.08em] text-[#9d4300]">
               {isEdit ? "Edit Menu Item" : "Add Menu Item"}
@@ -979,25 +1092,6 @@ export default function ItemName() {
                 ? `ID: MENU-${String(editing?.item_id ?? 0).padStart(3, "0")} | Last update: ${asDate(editing?.updated_at)}`
                 : "Configure a new item for your digital terminal catalog."}
             </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-light">
-            <Button
-              type="button"
-              variant="outline"
-              className={outlineButtonClass}
-              onClick={backToList}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className={accentButtonClass}
-              onClick={() => void onSave()}
-              disabled={saving || detailLoading}
-            >
-              {saving ? "Saving..." : isEdit ? "Update Item" : "Create Item"}
-            </Button>
           </div>
         </div>
 
@@ -1086,18 +1180,18 @@ export default function ItemName() {
 
                   <Input
                     label="Price ($)"
-                    type="number"
-                    min={0}
-                    step="0.01"
                     className="h-10 border-[#e7c8ad] bg-white"
                     value={form.price}
                     onChange={(event) =>
+                      isValidDecimalInput(event.target.value) &&
                       setForm((prev) => ({
                         ...prev,
                         price: event.target.value,
                       }))
                     }
                     disabled={saving}
+                    inputMode="decimal"
+                    pattern="^\d*\.?\d{0,2}$"
                   />
 
                   <div className="space-y-1.5">
@@ -1310,22 +1404,21 @@ export default function ItemName() {
                                       <TableCell>
                                         <Input
                                           className="h-8 border-[#e7c8ad] text-sm"
-                                          type="number"
-                                          step="0.01"
                                           value={String(option.price_delta)}
                                           onChange={(event) =>
+                                            isValidDecimalInput(event.target.value) &&
                                             updateOption(
                                               groupIndex,
                                               optionIndex,
                                               (current) => ({
                                                 ...current,
-                                                price_delta: Number(
-                                                  event.target.value,
-                                                ),
+                                                price_delta: event.target.value,
                                               }),
                                             )
                                           }
                                           disabled={saving}
+                                          inputMode="decimal"
+                                          pattern="^\d*\.?\d{0,2}$"
                                         />
                                       </TableCell>
                                       <TableCell>
@@ -1406,27 +1499,27 @@ export default function ItemName() {
                 </h3>
                 <label
                   htmlFor="item-photo-upload"
-                  className="grid min-h-56 cursor-pointer place-items-center border border-dashed border-[#efbe95] bg-[#fff5ec] p-4 text-center mb-5"
+                  tabIndex={saving ? -1 : 0}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    openPhotoPicker();
+                  }}
+                  onKeyDown={onPhotoKeyDown}
+                  onDragOver={onPhotoDragOver}
+                  onDragLeave={onPhotoDragLeave}
+                  onDrop={onPhotoDrop}
+                  className={`mb-5 grid min-h-56 place-items-center border border-dashed p-4 text-center transition-colors ${
+                    isPhotoDragActive
+                      ? "border-[#f36c21] bg-[#fff0e4]"
+                      : "border-[#efbe95] bg-[#fff5ec]"
+                  } ${saving ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
                 >
-                  {imagePreviewUrl ? (
+                  {imagePreviewUrl && !imagePreviewLoadFailed ? (
                     <img
                       src={imagePreviewUrl}
                       alt="Item preview"
                       className="h-full max-h-48 w-full object-cover"
-                      onError={(e) => {
-                        // On load failure fall back to the upload placeholder
-                        const el = e.currentTarget as HTMLImageElement;
-                        el.style.display = "none";
-                        const label = el.closest("label");
-                        if (label) {
-                          label.innerHTML = `
-                            <div class="space-y-2 text-[#c6743a]">
-                              <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 4v16m8-8H4"/></svg>
-                              <p class="text-xs font-semibold uppercase tracking-[0.07em]">Drop image or click to upload</p>
-                              <p class="text-[11px] text-[#b59378]">Square format (1080x1080) recommended</p>
-                            </div>`;
-                        }
-                      }}
+                      onError={() => setImagePreviewLoadFailed(true)}
                     />
                   ) : (
                     <div className="space-y-2 text-[#c6743a]">
@@ -1440,32 +1533,17 @@ export default function ItemName() {
                     </div>
                   )}
                 </label>
-                <Input
+                <input
+                  ref={photoInputRef}
                   id="item-photo-upload"
                   type="file"
                   accept="image/*"
-                  className="mt-3 h-10 border-[#e7c8ad] bg-white hidden"
+                  className="hidden"
                   onChange={onSelectPhoto}
                   disabled={saving}
                 />
-                <Input
-                  label="Image URL"
-                  className="mt-2 h-10 border-[#e7c8ad] bg-white text-sm"
-                  placeholder="https://cdn.example.com/images/item-01.jpg"
-                  value={form.existing_photo_url ?? ""}
-                  onChange={(event) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      existing_photo_url: event.target.value.trim()
-                        ? event.target.value
-                        : null,
-                    }))
-                  }
-                  disabled={saving}
-                />
                 <p className="mt-2 text-[11px] text-[#ab9685] italic tracking-[0.05em]">
-                  Linking a CDN URL will prioritize the remote asset over local
-                  uploads.
+                  Click or drop a JPG, PNG, or WebP image up to 5MB.
                 </p>
               </section>
 

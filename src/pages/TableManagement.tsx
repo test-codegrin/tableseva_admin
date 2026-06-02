@@ -14,7 +14,6 @@ import { toast } from "sonner";
 import { parseApiError } from "@/api/apiClient";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -481,9 +480,6 @@ export default function TableManagement() {
         <Table>
           <TableHeader className="bg-[#f8efe7] text-[#5b4e45]">
             <TableRow>
-              <TableHead className="w-8 font-bold">
-                <Checkbox />
-              </TableHead>
               <TableHead className="text-[#7c2d12]">Table Number</TableHead>
               <TableHead className="text-[#7c2d12]">Capacity</TableHead>
               <TableHead className="text-[#7c2d12]">Area Type</TableHead>
@@ -495,13 +491,13 @@ export default function TableManagement() {
           <TableBody className="border border-[#efcfb2]">
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={6}>
                   <Loader message="Loading tables..." className="min-h-20" />
                 </TableCell>
               </TableRow>
             ) : paginatedTables.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-[#9a8b7f]">
+                <TableCell colSpan={6} className="py-10 text-center text-[#9a8b7f]">
                   No tables found.
                 </TableCell>
               </TableRow>
@@ -510,9 +506,6 @@ export default function TableManagement() {
                 const availabilityState = getAvailabilityState(table);
                 return (
                   <TableRow key={table.table_id} className="border-b border-[#f2e4d7] ">
-                    <TableCell>
-                      <Checkbox />
-                    </TableCell>
                     <TableCell className="font-medium text-[#3d312a]">{table.table_number}</TableCell>
                     <TableCell>
                       <span className="inline-flex min-w-8 justify-center bg-[#f2ddd0] px-1.5 py-1 text-xs font-semibold text-[#6d5d53]">

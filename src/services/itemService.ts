@@ -172,8 +172,6 @@ export const buildOptionGroupReplacePayload = (groups: ItemOptionGroup[]) => {
 };
 
 export const buildOptionGroupPatchPayload = (groups: ItemOptionGroup[]) => {
-  validateOptionGroups(groups.filter((group) => group.is_deleted !== true));
-
   return groups.map((group) => {
     const baseGroup = {
       ...(typeof group.group_id === "number" ? { group_id: group.group_id } : {}),
@@ -184,13 +182,26 @@ export const buildOptionGroupPatchPayload = (groups: ItemOptionGroup[]) => {
       return baseGroup;
     }
 
+    if (!group.name.trim()) {
+      throw new Error("Option group name is required.");
+    }
+
+    const visibleOptions = group.options.filter((option) => option.is_deleted !== true);
+    const isExistingGroup = typeof group.group_id === "number";
+
+    if (!isExistingGroup && visibleOptions.length === 0) {
+      throw new Error(`Option group "${group.name.trim()}" must contain at least one option.`);
+    }
+
     return {
       ...baseGroup,
-      group_name: group.name.trim(),
+      name: group.name.trim(),
       multiple_select: group.multiple_select,
       is_required: group.is_required,
       status: group.status ?? 1,
-      options: group.options.map((option) => {
+      ...(group.options.length > 0
+        ? {
+            options: group.options.map((option) => {
         const baseOption = {
           ...(typeof option.option_id === "number" ? { option_id: option.option_id } : {}),
           ...(option.is_deleted ? { is_deleted: true } : {}),
@@ -200,12 +211,18 @@ export const buildOptionGroupPatchPayload = (groups: ItemOptionGroup[]) => {
           return baseOption;
         }
 
+        if (!option.name.trim()) {
+          throw new Error(`Option group "${group.name.trim()}" has an option without a name.`);
+        }
+
         return {
           ...baseOption,
           name: option.name.trim(),
           price: toNumber(option.price_delta),
         };
       }),
+          }
+        : {}),
     };
   });
 };

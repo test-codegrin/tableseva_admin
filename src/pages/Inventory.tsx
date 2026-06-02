@@ -43,6 +43,7 @@ import type {
 } from "@/types/admin";
 
 const PAGE_SIZE = 8;
+const DECIMAL_INPUT_PATTERN = /^\d*\.?\d{0,2}$/;
 
 type ItemForm = {
   categories_id: number;
@@ -67,6 +68,9 @@ const emptyOptionGroup = (): ItemOptionGroup => ({
   status: 1,
   options: [emptyOption()],
 });
+
+const isValidDecimalInput = (value: string) =>
+  value === "" || DECIMAL_INPUT_PATTERN.test(value);
 
 const createInitialForm = (): ItemForm => ({
   categories_id: 0,
@@ -688,14 +692,14 @@ export default function Inventory() {
               />
               <Input
                 label="Price"
-                type="number"
-                min={0}
-                step="0.01"
                 value={form.price}
                 onChange={(event) =>
+                  isValidDecimalInput(event.target.value) &&
                   setForm((prev) => ({ ...prev, price: event.target.value }))
                 }
                 disabled={saving}
+                inputMode="decimal"
+                pattern="^\d*\.?\d{0,2}$"
               />
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="item-status">Status</Label>
@@ -900,22 +904,26 @@ export default function Inventory() {
                         />
                         <Input
                           label="Price"
-                          type="number"
-                          step="0.01"
-                          value={option.price_delta}
+                          value={String(option.price_delta)}
                           onChange={(event) =>
+                            isValidDecimalInput(event.target.value) &&
                             updateOption(
                               groupIndex,
                               optionIndex,
                               (current) => ({
                                 ...current,
-                                price_delta: Number(event.target.value),
+                                price_delta:
+                                  event.target.value === ""
+                                    ? 0
+                                    : Number(event.target.value),
                               }),
                             )
                           }
                           disabled={
                             saving || group.is_deleted || option.is_deleted
                           }
+                          inputMode="decimal"
+                          pattern="^\d*\.?\d{0,2}$"
                         />
                         <div className="flex items-end">
                           <Button
