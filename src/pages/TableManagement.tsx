@@ -4,6 +4,7 @@ import {
   RiArrowLeftSLine,
   RiArrowRightSLine,
   RiBuilding4Line,
+  RiDeleteBinLine,
   RiEdit2Line,
   RiQrCodeLine,
   RiSearchLine,
@@ -12,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { parseApiError } from "@/api/apiClient";
+import { useConfirmDialog } from "@/components/providers/ConfirmDialogProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -118,6 +120,7 @@ const neutralButtonClass =
   "h-10.5 rounded-none border border-[#e8ccb3] bg-white px-4 text-xs uppercase tracking-[0.07em] text-[#6f5d4f] hover:bg-[#f8ede2]";
 
 export default function TableManagement() {
+  const confirm = useConfirmDialog();
   const navigate = useNavigate();
   const [screenMode, setScreenMode] = useState<ScreenMode>("list");
   const [editorMode, setEditorMode] = useState<EditorMode>("create");
@@ -126,6 +129,7 @@ export default function TableManagement() {
   const [tables, setTables] = useState<VendorTable[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingTableId, setDeletingTableId] = useState<number | null>(null);
 
   const [form, setForm] = useState<TableForm>(createInitialForm());
   const [formBaseline, setFormBaseline] = useState(JSON.stringify(createInitialForm()));
@@ -248,9 +252,14 @@ export default function TableManagement() {
     }
   };
 
-  const backToList = () => {
+  const backToList = async () => {
     if (formIsDirty && !saving) {
-      const shouldDiscard = window.confirm("Discard unsaved table changes?");
+      const shouldDiscard = await confirm({
+        title: "Discard changes",
+        description: "You have unsaved table changes. Leave this screen anyway?",
+        confirmText: "Discard",
+        tone: "destructive",
+      });
       if (!shouldDiscard) {
         return;
       }
@@ -260,9 +269,14 @@ export default function TableManagement() {
     setFormError(null);
   };
 
-  const redirectToTableList = (force = false) => {
+  const redirectToTableList = async (force = false) => {
     if (!force && formIsDirty && !saving) {
-      const shouldDiscard = window.confirm("Discard unsaved table changes?");
+      const shouldDiscard = await confirm({
+        title: "Discard changes",
+        description: "You have unsaved table changes. Leave this screen anyway?",
+        confirmText: "Discard",
+        tone: "destructive",
+      });
       if (!shouldDiscard) {
         return;
       }
@@ -320,7 +334,7 @@ export default function TableManagement() {
         description: response.message,
       });
       await loadTables();
-      redirectToTableList(true);
+      await redirectToTableList(true);
     } catch (error) {
       toast.error("Table save failed", {
         description: parseApiError(error).message,
@@ -331,9 +345,16 @@ export default function TableManagement() {
   };
 
   const onDelete = async (tableId: number) => {
-    if (!window.confirm("Delete this table?")) {
+    const shouldDelete = await confirm({
+      title: "Delete table",
+      description: "This table will be permanently removed.",
+      confirmText: "Delete",
+      tone: "destructive",
+    });
+    if (!shouldDelete) {
       return;
     }
+    setDeletingTableId(tableId);
     try {
       const response = await deleteTable(tableId);
       toast.success("Table deleted", { description: response.message });
@@ -342,6 +363,8 @@ export default function TableManagement() {
       setEditingTableId(null);
     } catch (error) {
       toast.error("Delete failed", { description: parseApiError(error).message });
+    } finally {
+      setDeletingTableId(null);
     }
   };
 
@@ -540,8 +563,22 @@ export default function TableManagement() {
                           onClick={() => {
                             void openEditScreen(table);
                           }}
+                          disabled={deletingTableId === table.table_id}
                         >
                           <RiEdit2Line className="size-4" /> Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          className="h-7 rounded-none px-2 text-[11px] uppercase tracking-[0.06em] text-[#b64545] hover:bg-[#fff2e6] hover:text-[#9f3535]"
+                          onClick={() => {
+                            void onDelete(table.table_id);
+                          }}
+                          disabled={deletingTableId === table.table_id}
+                        >
+                          <RiDeleteBinLine className="size-4" />
+                          {deletingTableId === table.table_id ? "Deleting..." : "Delete"}
                         </Button>
                       </div>
                     </TableCell>
@@ -627,7 +664,7 @@ export default function TableManagement() {
           <button
             type="button"
             className="hover:text-[#a65012] uppercase"
-            onClick={() => redirectToTableList()}
+            onClick={() => void redirectToTableList()}
           >
             Table Management
           </button>
@@ -763,7 +800,7 @@ export default function TableManagement() {
           type="button"
           variant="outline"
           className="h-11 rounded-none border-[#efcfb2] text-sm uppercase tracking-[0.07em] text-[#6f5d4f] hover:bg-[#f8ede2]"
-          onClick={backToList}
+          onClick={() => void backToList()}
           disabled={saving}
         >
           Cancel
@@ -779,9 +816,9 @@ export default function TableManagement() {
             onClick={() => {
               void onDelete(editingTableId);
             }}
-            disabled={saving}
+            disabled={saving || deletingTableId === editingTableId}
           >
-            Delete Table
+            {deletingTableId === editingTableId ? "Deleting..." : "Delete Table"}
           </Button>
         </div>
       )}

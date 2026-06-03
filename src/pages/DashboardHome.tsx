@@ -115,12 +115,18 @@ export default function DashboardHome() {
     };
   }, [fetchOverview]);
 
-  const weeklyChart = overview?.weekly_revenue.chart ?? [];
+  const weeklyChart = useMemo(
+    () => overview?.weekly_revenue.chart ?? [],
+    [overview],
+  );
   const weeklyMax = useMemo(
     () => Math.max(1, ...weeklyChart.map((entry) => entry.revenue)),
     [weeklyChart],
   );
-  const paymentMethods = overview?.payment_methods.methods ?? [];
+  const paymentMethods = useMemo(
+    () => overview?.payment_methods.methods ?? [],
+    [overview],
+  );
   const paymentShareTotal = useMemo(
     () => getPaymentMethodShareTotal(paymentMethods),
     [paymentMethods],

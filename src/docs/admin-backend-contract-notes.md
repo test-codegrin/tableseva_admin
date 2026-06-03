@@ -50,12 +50,25 @@ This frontend intentionally mirrors current backend behavior, including inconsis
   - `0=pending`
   - `1=accepted`
   - `2=completed`
+- Delete endpoint:
+  - `DELETE /orders/items/:order_id`
+  - Requires vendor bearer token
+  - `order_id` must be a positive integer
+- Order detail line items can include `items[].options[]` with:
+  - `group_name`
+  - `option_name`
+  - `quantity`
+  - `price`
+  - `unit_price`
+  - `total_price`
 - Allowed transitions:
   - `0->1`
   - `1->2`
 - Frontend behavior:
   - Invalid transitions blocked in UI.
+  - Order detail should render add-ons from `items[].options[]` and show each selected option quantity.
   - Refresh order and table data after status change.
+  - Confirm before delete, then refresh order and table data after order deletion.
 
 ## Manual QA Checklist
 1. Vendor login succeeds and token persists across refresh.
@@ -74,4 +87,5 @@ This frontend intentionally mirrors current backend behavior, including inconsis
 14. Order list and detail load correctly.
 15. Order status buttons allow only `0->1` and `1->2`.
 16. After order status update, table/order data are refreshed.
+17. Order delete requires confirmation and removes the order from the refreshed list.
 

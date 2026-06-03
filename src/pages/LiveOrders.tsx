@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { RiDeleteBinLine, RiSearchLine } from "@remixicon/react";
 import { toast } from "sonner";
 import { parseApiError } from "@/api/apiClient";
+import { useConfirmDialog } from "@/components/providers/ConfirmDialogProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import {
   canTransitionOrderStatus,
+  deleteOrder,
   getOrderById,
   getOrders,
   ORDER_STATUS_LABELS,
@@ -29,7 +32,6 @@ import {
 import { getTables } from "@/services/tableService";
 import type { OrderDetail, OrderStatus, OrderSummary } from "@/types/admin";
 import Loader from "@/pages/Loader";
-import { RiSearchLine } from "@remixicon/react";
 
 const PAGE_SIZE = 10;
 
@@ -55,10 +57,15 @@ const formatCurrency = (amount: number) =>
     maximumFractionDigits: 2,
   }).format(amount);
 
+const formatOptionLabel = (groupName: string | null | undefined, optionName: string) =>
+  groupName?.trim() ? `${groupName}: ${optionName}` : optionName;
+
 export default function LiveOrders() {
+  const confirm = useConfirmDialog();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [deletingOrderId, setDeletingOrderId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all");
   const [page, setPage] = useState(1);
@@ -99,6 +106,11 @@ export default function LiveOrders() {
       void loadOrderDetail(selectedOrderId);
     }
   }, [selectedOrderId]);
+
+  const closeOrderPreview = () => {
+    setSelectedOrderId(null);
+    setSelectedOrder(null);
+  };
 
   const openOrderPreview = (orderId: number) => {
     // Always clear previous detail so preview re-fetch uses fresh :order_id param state.
@@ -157,8 +169,7 @@ export default function LiveOrders() {
       window.dispatchEvent(new Event("orders:status-updated"));
       window.dispatchEvent(new Event("dashboard:refresh"));
 
-      setSelectedOrder(null);
-      setSelectedOrderId(null);
+      closeOrderPreview();
       await Promise.all([
         loadOrders(),
         // Backend updates table availability during order lifecycle.
@@ -170,6 +181,41 @@ export default function LiveOrders() {
       });
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleDelete = async (orderId: number) => {
+    const shouldDelete = await confirm({
+      title: "Delete order",
+      description: "This order will be permanently removed.",
+      confirmText: "Delete",
+      tone: "destructive",
+    });
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    setDeletingOrderId(orderId);
+    try {
+      const response = await deleteOrder(orderId);
+      toast.success("Order deleted", { description: response.message });
+      window.dispatchEvent(new Event("dashboard:refresh"));
+
+      if (selectedOrderId === orderId) {
+        closeOrderPreview();
+      }
+
+      await Promise.all([
+        loadOrders(),
+        getTables(),
+      ]);
+    } catch (error) {
+      toast.error("Delete failed", {
+        description: parseApiError(error).message,
+      });
+    } finally {
+      setDeletingOrderId(null);
     }
   };
 
@@ -205,6 +251,8 @@ export default function LiveOrders() {
   const canMoveToCompleted = Boolean(
     selectedOrder && canTransitionOrderStatus(selectedOrder.status, 2),
   );
+  const isDeletingSelectedOrder =
+    selectedOrderId !== null && deletingOrderId === selectedOrderId;
   return (
     <div className="space-y-4 p-6 bg-[#fff8f6]">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -346,8 +394,22 @@ export default function LiveOrders() {
                         onClick={() => {
                           openOrderPreview(order.order_id);
                         }}
+                        disabled={deletingOrderId === order.order_id}
                       >
                         Preview
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-[#b64545] hover:bg-[#fff1eb] hover:text-[#9f3535]"
+                        onClick={() => {
+                          void handleDelete(order.order_id);
+                        }}
+                        disabled={deletingOrderId === order.order_id}
+                      >
+                        <RiDeleteBinLine className="size-3.5" />
+                        {deletingOrderId === order.order_id ? "Deleting..." : "Delete"}
                       </Button>
                     </div>
                   </TableCell>
@@ -389,7 +451,7 @@ export default function LiveOrders() {
 
       <Dialog
         open={selectedOrderId !== null}
-        onOpenChange={(open) => !open && setSelectedOrderId(null)}
+        onOpenChange={(open) => !open && closeOrderPreview()}
       >
         <DialogContent className="max-h-[90vh] max-w-3xl overflow-auto">
           <DialogHeader>
@@ -469,11 +531,22 @@ export default function LiveOrders() {
                           <TableCell>
                             <div className="flex flex-col">
                               <span>{line.item_name}</span>
-                              {line.options_text && (
+                              {line.options.length > 0 ? (
+                                <div className="mt-1 space-y-1 text-xs text-zinc-500">
+                                  {line.options.map((option, optionIndex) => (
+                                    <span
+                                      key={`${option.group_name ?? "group"}-${option.option_name}-${optionIndex}`}
+                                      className="block"
+                                    >
+                                      {`- ${formatOptionLabel(option.group_name, option.option_name)} x${option.quantity}`}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : line.options_text ? (
                                 <span className="whitespace-pre-line text-xs text-zinc-500">
                                   {line.options_text}
                                 </span>
-                              )}
+                              ) : null}
                             </div>
                           </TableCell>
                           <TableCell>{line.quantity}</TableCell>
@@ -491,11 +564,23 @@ export default function LiveOrders() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setSelectedOrderId(null)}
-              disabled={updatingStatus}
+              onClick={closeOrderPreview}
+              disabled={updatingStatus || isDeletingSelectedOrder}
             >
               Close
             </Button>
+            {/* {selectedOrder && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  void handleDelete(selectedOrder.order_id);
+                }}
+                disabled={updatingStatus || isDeletingSelectedOrder}
+              >
+                {isDeletingSelectedOrder ? "Deleting..." : "Delete Order"}
+              </Button>
+            )} */}
             <Button
               type="button"
               onClick={() => {
@@ -503,7 +588,8 @@ export default function LiveOrders() {
               }}
               disabled={
                 !canMoveToAccepted ||
-                updatingStatus
+                updatingStatus ||
+                isDeletingSelectedOrder
               }
             >
               {updatingStatus && canMoveToAccepted
@@ -517,7 +603,8 @@ export default function LiveOrders() {
               }}
               disabled={
                 !canMoveToCompleted ||
-                updatingStatus
+                updatingStatus ||
+                isDeletingSelectedOrder
               }
             >
               {updatingStatus && canMoveToCompleted

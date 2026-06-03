@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { parseApiError } from "@/api/apiClient";
+import { useConfirmDialog } from "@/components/providers/ConfirmDialogProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RiAddLine, RiSearchLine } from "@remixicon/react";
@@ -118,6 +119,7 @@ const statusBadgeClass = (status?: StatusFlag) =>
     : "border border-[#E0C0B1] text-[#94A3B8] text-[12px]";
 
 export default function Inventory() {
+  const confirm = useConfirmDialog();
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
@@ -373,7 +375,13 @@ export default function Inventory() {
   }, [form.photo]);
 
   const onDelete = async (itemId: number) => {
-    if (!window.confirm("Delete this item?")) {
+    const shouldDelete = await confirm({
+      title: "Delete item",
+      description: "This item will be permanently removed.",
+      confirmText: "Delete",
+      tone: "destructive",
+    });
+    if (!shouldDelete) {
       return;
     }
 

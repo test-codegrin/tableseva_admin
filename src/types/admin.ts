@@ -140,7 +140,17 @@ export interface OrderLineItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+  options: OrderLineItemOption[];
   options_text?: string | null;
+}
+
+export interface OrderLineItemOption {
+  group_name?: string | null;
+  option_name: string;
+  quantity: number;
+  price: number;
+  unit_price: number;
+  total_price: number;
 }
 
 export interface OrderItemQuantity {

@@ -236,21 +236,23 @@ export default function QRCodeGeneration() {
       return next;
     });
   }, [filteredRecords]);
-
+  
   useEffect(() => {
     if (selectedTableIds.size === 0) {
       setPreviewTableId(null);
       return;
     }
 
-    if (
-      previewTableId === null ||
-      !selectedTableIds.has(previewTableId)
-    ) {
-      setPreviewTableId(Array.from(selectedTableIds)[0]);
-    }
-  }, [previewTableId, selectedTableIds]);
+    setPreviewTableId((current) => {
+      if (current === null) return current; // don't reopen after close
 
+      if (!selectedTableIds.has(current)) {
+        return Array.from(selectedTableIds)[0];
+      }
+
+      return current;
+    });
+  }, [selectedTableIds]);
   const toggleSelectAll = () => {
     if (selectAll) {
       setSelectedTableIds(new Set());
@@ -603,7 +605,7 @@ export default function QRCodeGeneration() {
                         ? "2px solid #F97316"
                         : isSelected
                           ? "1px solid #F97316"
-                        : "1px solid #FDA77A",
+                          : "1px solid #FDA77A",
                       backgroundColor: isPreviewed
                         ? "#F97316"
                         : isSelected

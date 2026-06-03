@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { RiAddLine, RiDeleteBinLine, RiEdit2Line } from "@remixicon/react";
 import { parseApiError } from "@/api/apiClient";
+import { useConfirmDialog } from "@/components/providers/ConfirmDialogProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +27,7 @@ const statusLabel = (status: StatusFlag) =>
   status === 1 ? "Active" : "Inactive";
 
 export default function DishManagement() {
+  const confirm = useConfirmDialog();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -66,7 +68,14 @@ export default function DishManagement() {
   }, [page, totalPages]);
 
   const onDelete = async (categoryId: number) => {
-    if (!window.confirm("Delete this category?")) return;
+    const shouldDelete = await confirm({
+      title: "Delete category",
+      description: "This category will be permanently removed.",
+      confirmText: "Delete",
+      tone: "destructive",
+    });
+    if (!shouldDelete) return;
+
     try {
       await deleteCategoryApi(categoryId);
       toast.success("SYSTEM NOTIFICATION", {

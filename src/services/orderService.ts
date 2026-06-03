@@ -3,6 +3,7 @@ import type {
   OrderDetail,
   OrderItemQuantity,
   OrderLineItem,
+  OrderLineItemOption,
   OrderStatus,
   OrderSummary,
 } from "@/types/admin";
@@ -23,26 +24,37 @@ const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 export const canTransitionOrderStatus = (from: OrderStatus, to: OrderStatus) =>
   ALLOWED_TRANSITIONS[from].includes(to);
 
+const mapOrderLineItemOption = (value: unknown): OrderLineItemOption => {
+  const payload = isRecord(value) ? value : {};
+  const quantity = toNumber(payload.quantity, 1);
+  const unitPrice = toNumber(payload.unit_price ?? payload.price);
+
+  return {
+    group_name: toNullableString(payload.group_name),
+    option_name: toString(payload.option_name),
+    quantity,
+    price: toNumber(payload.price, unitPrice),
+    unit_price: unitPrice,
+    total_price: toNumber(payload.total_price, quantity * unitPrice),
+  };
+};
+
 const mapOrderLineItem = (value: unknown): OrderLineItem => {
   const payload = isRecord(value) ? value : {};
 
   const quantity = toNumber(payload.quantity, 1);
   const unitPrice = toNumber(payload.unit_price ?? payload.base_price ?? payload.price);
   const options = ensureArray<unknown>(payload.options)
-    .map((entry) => (isRecord(entry) ? entry : null))
-    .filter((entry): entry is Record<string, unknown> => Boolean(entry))
-    .map((entry) => ({
-      groupName: toString(entry.group_name),
-      optionName: toString(entry.option_name),
-      price: toNumber(entry.price),
-    }))
-    .filter((entry) => entry.groupName || entry.optionName);
+    .map(mapOrderLineItemOption)
+    .filter((entry) => entry.option_name.trim().length > 0);
   const optionsText =
     toNullableString(payload.options_text) ??
     (options.length > 0
       ? options
         .map((entry) =>
-          entry.groupName ? `${entry.groupName}: ${entry.optionName}` : entry.optionName,
+          entry.group_name
+            ? `${entry.group_name}: ${entry.option_name} x${entry.quantity}`
+            : `${entry.option_name} x${entry.quantity}`,
         )
         .join("\n")
       : null);
@@ -56,6 +68,7 @@ const mapOrderLineItem = (value: unknown): OrderLineItem => {
     quantity,
     unit_price: unitPrice,
     total_price: toNumber(payload.total_price, quantity * unitPrice),
+    options,
     options_text: optionsText,
   };
 };
@@ -180,6 +193,7 @@ const mapOrderDetail = (value: unknown): OrderDetail => {
         quantity: mapped.quantity,
         unit_price: 0,
         total_price: 0,
+        options: [],
         options_text: null,
       };
     });
@@ -236,6 +250,21 @@ export const getOrderById = async (orderId: number) => {
 
   const orderEntity = extractOrderEntity(response.data ?? response.raw, orderId);
   return mapOrderDetail(orderEntity);
+};
+
+export const deleteOrder = async (orderId: number) => {
+  if (!Number.isInteger(orderId) || orderId <= 0) {
+    throw new Error("order_id must be a positive integer");
+  }
+
+  const response = await requestApi<unknown>({
+    method: "delete",
+    url: `/orders/items/${orderId}`,
+  });
+
+  return {
+    message: response.message || "Item order deleted successfully",
+  };
 };
 
 export const updateOrderStatus = async (orderId: number, current: OrderStatus, next: OrderStatus) => {

@@ -5,6 +5,7 @@ import {
   RiEdit2Line,
 } from "@remixicon/react";
 import { parseApiError } from "@/api/apiClient";
+import { useConfirmDialog } from "@/components/providers/ConfirmDialogProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +30,7 @@ const PAGE_SIZE = 8;
 const statusLabel = (status: StatusFlag) => (status === 1 ? "Active" : "Inactive");
 
 export default function CategoryTable() {
+  const confirm = useConfirmDialog();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -70,7 +72,14 @@ export default function CategoryTable() {
   };
 
   const onDelete = async (categoryId: number) => {
-    if (!window.confirm("Delete this category?")) return;
+    const shouldDelete = await confirm({
+      title: "Delete category",
+      description: "This category will be permanently removed.",
+      confirmText: "Delete",
+      tone: "destructive",
+    });
+    if (!shouldDelete) return;
+
     try {
       await deleteCategory(categoryId);
       showSystemToast("Category deleted successfully");

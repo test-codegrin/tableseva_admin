@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 
 import { parseApiError } from "@/api/apiClient";
+import { useConfirmDialog } from "@/components/providers/ConfirmDialogProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -230,6 +231,7 @@ const outlineButtonClass =
   "h-10 rounded-none border border-[#eac8aa] bg-white px-4 text-xs uppercase tracking-[0.07em] text-[#735f4f] hover:bg-[#f8eee4]";
 
 export default function ItemName() {
+  const confirm = useConfirmDialog();
   const [screenMode, setScreenMode] = useState<ScreenMode>("list");
   const [categories, setCategories] = useState<Category[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -388,13 +390,18 @@ export default function ItemName() {
     }
   };
 
-  const backToList = () => {
+  const backToList = async () => {
     if (
       (screenMode === "create" || screenMode === "edit") &&
       formIsDirty &&
       !saving
     ) {
-      const shouldDiscard = window.confirm("Discard unsaved item changes?");
+      const shouldDiscard = await confirm({
+        title: "Discard changes",
+        description: "You have unsaved item changes. Leave this screen anyway?",
+        confirmText: "Discard",
+        tone: "destructive",
+      });
       if (!shouldDiscard) {
         return;
       }
@@ -592,7 +599,13 @@ export default function ItemName() {
   };
 
   const onDelete = async (itemId: number) => {
-    if (!window.confirm("Delete this item?")) {
+    const shouldDelete = await confirm({
+      title: "Delete item",
+      description: "This item will be permanently removed.",
+      confirmText: "Delete",
+      tone: "destructive",
+    });
+    if (!shouldDelete) {
       return;
     }
 
@@ -1587,7 +1600,7 @@ export default function ItemName() {
             type="button"
             variant="outline"
             className={outlineButtonClass}
-            onClick={backToList}
+            onClick={() => void backToList()}
             disabled={saving}
           >
             Cancel
