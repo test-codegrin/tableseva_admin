@@ -85,29 +85,6 @@ const ChevronDownIcon = () => (
 );
 
 // ── area filter options ────────────────────────────────────────────────────────
-const AREA_OPTIONS = [
-  { value: "all", label: "All Areas" },
-  { value: "main_hall", label: "Main Hall" },
-  { value: "indoor", label: "Indoor" },
-  { value: "outdoor", label: "Outdoor" },
-  { value: "vip", label: "VIP" },
-  { value: "bar_area", label: "Bar Area" },
-  { value: "terrace", label: "Terrace" },
-];
-
-const normalizeAreaKey = (value?: string | null) => {
-  const normalized = (value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[\s-]+/g, "_");
-
-  if (normalized === "bar") {
-    return "bar_area";
-  }
-
-  return normalized;
-};
-
 // ── helper: get display label for a record ───────────────────────────────────
 const getTableLabel = (record: TableQrCodeRecord): string => {
   if (record.table_name) {
@@ -154,6 +131,7 @@ export default function QRCodeGeneration() {
   const [records, setRecords] = useState<TableQrCodeRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedArea, setSelectedArea] = useState("all");
+  const [areaOptions, setAreaOptions] = useState<string[]>([]);
   const [areaDropdownOpen, setAreaDropdownOpen] = useState(false);
   const [selectedTableIds, setSelectedTableIds] = useState<Set<number>>(
     new Set(),
@@ -180,6 +158,8 @@ export default function QRCodeGeneration() {
         area_type: record.area_type || tableAreas.get(record.table_id),
       }));
 
+      setAreaOptions(tableResponse.filters.area_types);
+
       setRecords(
         Array.from(
           new Map(mergedRecords.map((record) => [record.table_id, record])).values(),
@@ -199,15 +179,14 @@ export default function QRCodeGeneration() {
   }, []);
 
   const selectedAreaLabel =
-    AREA_OPTIONS.find((area) => area.value === selectedArea)?.label ||
-    "All Areas";
+    selectedArea === "all" ? "All Areas" : selectedArea;
 
   const filteredRecords = useMemo(
     () =>
       selectedArea === "all"
         ? records
         : records.filter(
-          (record) => normalizeAreaKey(record.area_type) === selectedArea,
+          (record) => (record.area_type?.trim() || "") === selectedArea,
         ),
     [records, selectedArea],
   );
@@ -485,76 +464,33 @@ export default function QRCodeGeneration() {
                     boxShadow: "0 4px 12px rgba(200,90,0,0.1)",
                   }}
                 >
-                  {AREA_OPTIONS.map((area) => (
+                  {["all", ...areaOptions].map((area) => (
                     <button
-                      key={area.value}
+                      key={area}
                       onClick={() => {
-                        setSelectedArea(area.value);
+                        setSelectedArea(area);
                         setAreaDropdownOpen(false);
                       }}
                       className="w-full text-left px-3 py-2"
                       style={{
                         fontSize: 14,
                         color:
-                          area.value === selectedArea ? "#c85a00" : "#1a0a00",
+                          area === selectedArea ? "#c85a00" : "#1a0a00",
                         backgroundColor:
-                          area.value === selectedArea
+                          area === selectedArea
                             ? "#fff8f4"
                             : "transparent",
                         border: "none",
                         cursor: "pointer",
-                        fontWeight: area.value === selectedArea ? 600 : 400,
+                        fontWeight: area === selectedArea ? 600 : 400,
                       }}
                     >
-                      {area.label}
+                      {area === "all" ? "All Areas" : area}
                     </button>
                   ))}
                 </div>
               )}
             </div>
-          </div>
-
-          {/* ── Select All toggle ── */}
-          <div
-            className="flex items-center justify-between px-4 py-2"
-            style={{
-              border: "1px solid #f5cbb0",
-              borderLeft: "3px solid #F97316",
-              backgroundColor: "#fff8f4",
-              borderRadius: 2,
-            }}
-          >
-            <span style={{ fontSize: 13, fontWeight: 500, color: "#1a0a00" }}>
-              Select All Tables ({filteredRecords.length})
-            </span>
-            {/* Toggle switch */}
-            <button
-              onClick={toggleSelectAll}
-              style={{
-                width: 40,
-                height: 22,
-                borderRadius: 11,
-                backgroundColor: selectAll ? "#e85c00" : "#ddd",
-                border: "none",
-                cursor: "pointer",
-                position: "relative",
-                transition: "background-color 0.2s",
-              }}
-            >
-              <span
-                style={{
-                  position: "absolute",
-                  top: 3,
-                  left: selectAll ? 20 : 3,
-                  width: 16,
-                  height: 16,
-                  borderRadius: "50%",
-                  backgroundColor: "#fff",
-                  transition: "left 0.2s",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                }}
-              />
-            </button>
           </div>
 
           {/* ── Table grid ── */}

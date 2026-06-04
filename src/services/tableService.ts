@@ -3,6 +3,7 @@ import type {
   StatusFlag,
   TableQrCodeRecord,
   UpsertTablePayload,
+  VendorTableFilters,
   VendorTable,
 } from "@/types/admin";
 import {
@@ -44,7 +45,7 @@ const mapTable = (value: unknown): VendorTable => {
     table_id: toNumber(payload.table_id),
     table_number: toString(payload.table_number),
     capacity: toNumber(payload.seating_capacity ?? payload.capacity, 1),
-    area_type: toString(payload.area_type, "indoor"),
+    area_type: toNullableString(payload.area_type) ?? undefined,
     status: mappedStatus,
     is_available: mappedAvailability,
     qr_code_url: toNullableString(payload.qr_code_url),
@@ -135,10 +136,15 @@ const normalizeTablePayload = (payload: UpsertTablePayload) => {
     throw new Error("Seating capacity must be a positive number.");
   }
 
+  const areaType = payload.area_type?.trim();
+  if (!areaType) {
+    throw new Error("Area type is required.");
+  }
+
   const normalized: Record<string, number | string> = {
     table_number: tableNumber,
     seating_capacity: Math.floor(payload.capacity),
-    area_type: payload.area_type?.trim() || "indoor",
+    area_type: areaType,
   };
 
   if (typeof payload.status !== "undefined") {
@@ -158,14 +164,49 @@ const normalizeTablePayload = (payload: UpsertTablePayload) => {
   return normalized;
 };
 
-export const getTables = async () => {
+const extractTableFilters = (value: unknown): VendorTableFilters => {
+  if (isRecord(value) && isRecord(value.filters)) {
+    return {
+      area_types: ensureArray<string>(value.filters.area_types).filter(Boolean),
+    };
+  }
+
+  if (isRecord(value) && isRecord(value.data) && isRecord(value.data.filters)) {
+    return {
+      area_types: ensureArray<string>(value.data.filters.area_types).filter(Boolean),
+    };
+  }
+
+  return { area_types: [] };
+};
+
+export const getTables = async (params?: { area_type?: string }) => {
   const response = await requestApi<unknown>({
     method: "get",
     url: "/tables",
+    params: params?.area_type ? { area_type: params.area_type } : undefined,
   });
 
+  const rawValue = response.raw;
+
   return {
-    tables: extractTableArray(response.data ?? response.raw),
+    tables: extractTableArray(response.data ?? rawValue),
+    filters: extractTableFilters(rawValue),
+    message: response.message,
+  };
+};
+
+export const getTableAreaTypes = async () => {
+  const response = await requestApi<unknown>({
+    method: "get",
+    url: "/tables/area-types",
+  });
+
+  const value = response.data ?? response.raw;
+  const data = isRecord(value) ? value.data : undefined;
+
+  return {
+    area_types: ensureArray<string>(Array.isArray(data) ? data : value).filter(Boolean),
     message: response.message,
   };
 };

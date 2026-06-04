@@ -122,6 +122,10 @@ export interface UpsertTablePayload {
   is_available?: StatusFlag;
 }
 
+export interface VendorTableFilters {
+  area_types: string[];
+}
+
 export interface TableQrCodeRecord {
   table_name: ReactNode;
   table_id: number;

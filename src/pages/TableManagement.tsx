@@ -43,6 +43,7 @@ import Loader from "@/pages/Loader";
 import {
   createTable,
   deleteTable,
+  getTableAreaTypes,
   getTableById,
   getTableQrImageUrl,
   getTables,
@@ -54,7 +55,6 @@ type ScreenMode = "list" | "editor";
 type EditorMode = "create" | "edit";
 type AvailabilityViewFilter = "all" | "available" | "occupied" | "service";
 type AvailabilityStateChoice = "available" | "occupied" | "service";
-type EditorAvailabilityChoice = "available" | "occupied" | "service";
 
 type TableForm = {
   table_number: string;
@@ -66,34 +66,13 @@ type TableForm = {
 
 const PAGE_SIZE = 5;
 
-const areaOptions = [
-  { value: "main_hall", label: "Main Hall" },
-  { value: "terrace", label: "Terrace" },
-  { value: "bar_area", label: "Bar Area" },
-  { value: "indoor", label: "Indoor" },
-  { value: "outdoor", label: "Outdoor" },
-] as const;
-
 const createInitialForm = (): TableForm => ({
   table_number: "",
   capacity: "",
-  area_type: "main_hall",
+  area_type: "",
   status: 1,
   is_available: 1,
 });
-
-const normalizeAreaType = (value?: string | null) => (value?.trim() || "main_hall").toLowerCase();
-
-const getAreaLabel = (value?: string | null) => {
-  const normalized = normalizeAreaType(value);
-  const known = areaOptions.find((option) => option.value === normalized);
-  if (known) {
-    return known.label;
-  }
-  return normalized
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-};
 
 const getAvailabilityState = (table: Pick<VendorTable, "status" | "is_available">): AvailabilityStateChoice =>
   table.status === 0 ? "service" : table.is_available === 1 ? "available" : "occupied";
@@ -127,12 +106,17 @@ export default function TableManagement() {
   const [editingTableId, setEditingTableId] = useState<number | null>(null);
 
   const [tables, setTables] = useState<VendorTable[]>([]);
+  const [areaTypeOptions, setAreaTypeOptions] = useState<string[]>([]);
+  const [tableAreaFilters, setTableAreaFilters] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingTableId, setDeletingTableId] = useState<number | null>(null);
 
   const [form, setForm] = useState<TableForm>(createInitialForm());
-  const [formBaseline, setFormBaseline] = useState(JSON.stringify(createInitialForm()));
+  const [customAreaType, setCustomAreaType] = useState("");
+  const [formBaseline, setFormBaseline] = useState(
+    JSON.stringify({ form: createInitialForm(), customAreaType: "" }),
+  );
   const [formError, setFormError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
@@ -141,10 +125,12 @@ export default function TableManagement() {
   const [page, setPage] = useState(1);
   const [qrPreviewTable, setQrPreviewTable] = useState<VendorTable | null>(null);
 
-  const loadTables = async () => {
+  const loadTables = async (nextAreaFilter: "all" | string = areaFilter) => {
     setLoading(true);
     try {
-      const response = await getTables();
+      const response = await getTables(
+        nextAreaFilter === "all" ? undefined : { area_type: nextAreaFilter },
+      );
       setTables(
         response.tables.map((table) => ({
           ...table,
@@ -152,6 +138,7 @@ export default function TableManagement() {
           is_available: table.is_available ?? 1,
         })),
       );
+      setTableAreaFilters(response.filters.area_types);
     } catch (error) {
       toast.error("Failed to fetch tables", {
         description: parseApiError(error).message,
@@ -161,22 +148,51 @@ export default function TableManagement() {
     }
   };
 
+  async function loadAreaTypeOptions() {
+    try {
+      const response = await getTableAreaTypes();
+      setAreaTypeOptions(response.area_types);
+    } catch (error) {
+      toast.error("Failed to fetch area types", {
+        description: parseApiError(error).message,
+      });
+    }
+  }
+
   useEffect(() => {
-    void loadTables();
+    void Promise.all([loadTables("all"), loadAreaTypeOptions()]);
   }, []);
+
+  useEffect(() => {
+    if (editorMode !== "create" || screenMode !== "editor" || form.area_type || customAreaType) {
+      return;
+    }
+
+    if (areaTypeOptions.length === 0) {
+      return;
+    }
+
+    setForm((prev) => {
+      const next = { ...prev, area_type: areaTypeOptions[0] };
+      setFormBaseline(JSON.stringify({ form: next, customAreaType: "" }));
+      return next;
+    });
+  }, [areaTypeOptions, customAreaType, editorMode, form.area_type, screenMode]);
+
+  const resolvedAreaType = customAreaType.trim() || form.area_type.trim();
 
   const filteredTables = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
     return tables.filter((table) => {
-      const tableArea = normalizeAreaType(table.area_type);
+      const tableArea = table.area_type?.trim() || "";
       const tableAvailability = getAvailabilityState(table);
 
       const matchesSearch =
         normalizedSearch.length === 0 ||
         String(table.table_number).toLowerCase().includes(normalizedSearch) ||
         String(table.capacity).toLowerCase().includes(normalizedSearch) ||
-        tableArea.includes(normalizedSearch);
+        tableArea.toLowerCase().includes(normalizedSearch);
 
       const matchesArea = areaFilter === "all" || tableArea === areaFilter;
       const matchesAvailability =
@@ -199,7 +215,10 @@ export default function TableManagement() {
     }
   }, [page, totalPages]);
 
-  const formIsDirty = useMemo(() => JSON.stringify(form) !== formBaseline, [form, formBaseline]);
+  const formIsDirty = useMemo(
+    () => JSON.stringify({ form, customAreaType }) !== formBaseline,
+    [customAreaType, form, formBaseline],
+  );
 
   const totalCapacity = useMemo(
     () => tables.reduce((total, table) => total + Number(table.capacity || 0), 0),
@@ -215,11 +234,15 @@ export default function TableManagement() {
   const qrReadyCount = useMemo(() => tables.filter((table) => Boolean(table.table_id)).length, [tables]);
 
   const openCreateScreen = () => {
-    const next = createInitialForm();
+    const next = {
+      ...createInitialForm(),
+      area_type: areaTypeOptions[0] ?? "",
+    };
     setEditorMode("create");
     setEditingTableId(null);
     setForm(next);
-    setFormBaseline(JSON.stringify(next));
+    setCustomAreaType("");
+    setFormBaseline(JSON.stringify({ form: next, customAreaType: "" }));
     setFormError(null);
     setScreenMode("editor");
   };
@@ -232,16 +255,24 @@ export default function TableManagement() {
 
     try {
       const detail = await getTableById(table.table_id);
+      const detailAreaType = detail.area_type?.trim() || "";
+      const matchingAreaType = areaTypeOptions.includes(detailAreaType) ? detailAreaType : "";
       const next: TableForm = {
         table_number: String(detail.table_number),
         capacity: String(detail.capacity),
-        area_type: normalizeAreaType(detail.area_type),
+        area_type: matchingAreaType,
         status: detail.status ?? 1,
         is_available: detail.is_available ?? 1,
       };
       setEditingTableId(detail.table_id);
       setForm(next);
-      setFormBaseline(JSON.stringify(next));
+      setCustomAreaType(matchingAreaType ? "" : detailAreaType);
+      setFormBaseline(
+        JSON.stringify({
+          form: next,
+          customAreaType: matchingAreaType ? "" : detailAreaType,
+        }),
+      );
     } catch (error) {
       setScreenMode("list");
       toast.error("Failed to load table detail", {
@@ -296,6 +327,9 @@ export default function TableManagement() {
     if (!Number.isFinite(capacity) || capacity <= 0) {
       throw new Error("Seating capacity must be a positive number.");
     }
+    if (!resolvedAreaType) {
+      throw new Error("Area type is required.");
+    }
     if (!(form.status === 0 || form.status === 1)) {
       throw new Error("Operational status must be valid.");
     }
@@ -307,7 +341,7 @@ export default function TableManagement() {
   const buildPayload = (): UpsertTablePayload => ({
     table_number: form.table_number.trim(),
     capacity: Number(form.capacity),
-    area_type: form.area_type,
+    area_type: resolvedAreaType,
     status: form.status,
     is_available: form.is_available,
   });
@@ -333,7 +367,7 @@ export default function TableManagement() {
       toast.success(editorMode === "edit" ? "Table updated" : "Table created", {
         description: response.message,
       });
-      await loadTables();
+      await Promise.all([loadTables(areaFilter), loadAreaTypeOptions()]);
       await redirectToTableList(true);
     } catch (error) {
       toast.error("Table save failed", {
@@ -358,7 +392,7 @@ export default function TableManagement() {
     try {
       const response = await deleteTable(tableId);
       toast.success("Table deleted", { description: response.message });
-      await loadTables();
+      await loadTables(areaFilter);
       setScreenMode("list");
       setEditingTableId(null);
     } catch (error) {
@@ -373,6 +407,7 @@ export default function TableManagement() {
     setAreaFilter("all");
     setAvailabilityFilter("all");
     setPage(1);
+    void loadTables("all");
   };
 
   const downloadQr = async (table: VendorTable) => {
@@ -397,16 +432,6 @@ export default function TableManagement() {
         description: parseApiError(error).message,
       });
     }
-  };
-
-  const editorAvailabilityChoice: EditorAvailabilityChoice =
-    form.is_available === 1 ? "available" : "occupied";
-
-  const applyAvailabilityChoice = (choice: EditorAvailabilityChoice) => {
-    setForm((prev) => ({
-      ...prev,
-      is_available: choice === "available" ? 1 : 0,
-    }));
   };
 
   const currentEditingTable = useMemo(
@@ -454,6 +479,7 @@ export default function TableManagement() {
               onValueChange={(value) => {
                 setAreaFilter(value);
                 setPage(1);
+                void loadTables(value);
               }}
             >
               <SelectTrigger className="h-10 py-5 border-[#e8cab0] bg-white text-sm">
@@ -461,9 +487,9 @@ export default function TableManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Areas</SelectItem>
-                {areaOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
+                {tableAreaFilters.map((areaType) => (
+                  <SelectItem key={areaType} value={areaType}>
+                    {areaType}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -535,7 +561,7 @@ export default function TableManagement() {
                         {String(table.capacity).padStart(2, "0")}
                       </span>
                     </TableCell>
-                    <TableCell className="text-[#584a41]">{getAreaLabel(table.area_type)}</TableCell>
+                    <TableCell className="text-[#584a41]">{table.area_type || "Unassigned"}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`rounded-none px-2 py-0.5 text-[10px]  ${statusBadgeClass(table.status)}`}>
                         {statusLabel(table.status)}
@@ -701,20 +727,30 @@ export default function TableManagement() {
           <p className="text-xs font-semibold uppercase tracking-[0.07em] text-[#5d4f45]">Area Type</p>
           <Select
             value={form.area_type}
-            onValueChange={(value) => setForm((prev) => ({ ...prev, area_type: value }))}
+            onValueChange={(value) => {
+              setCustomAreaType("");
+              setForm((prev) => ({ ...prev, area_type: value }));
+            }}
             disabled={saving}
           >
             <SelectTrigger className="h-10 border-[#e8cab0] py-5 bg-white text-sm">
               <SelectValue placeholder="Select area type" />
             </SelectTrigger>
             <SelectContent>
-              {areaOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+              {areaTypeOptions.map((areaType) => (
+                <SelectItem key={areaType} value={areaType}>
+                  {areaType}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          <Input
+            className="mt-3 h-10 border-[#e8cab0] bg-white"
+            placeholder="Add new area type"
+            value={customAreaType}
+            onChange={(event) => setCustomAreaType(event.target.value)}
+            disabled={saving}
+          />
         </div>
 
         <div className="mt-4 border border-[#efdfd2] bg-[#f8f0e8] p-3">
@@ -725,7 +761,7 @@ export default function TableManagement() {
             <div>
               <p className="text-[15px] font-semibold text-[#bf5e1f] capitalize">Table {form.table_number || "—"}</p>
               <p className="text-[13px] text-[#7a6a5e] capitalize">
-                Located in {getAreaLabel(form.area_type)} • Capacity: {form.capacity || "0"}
+                Located in {resolvedAreaType || "Select area"} • Capacity: {form.capacity || "0"}
               </p>
             </div>
           </div>
@@ -751,35 +787,6 @@ export default function TableManagement() {
             />
           </div>
         </div>
-
-        <div className="mt-4 space-y-1.5">
-          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5d4f45]">Availability State</p>
-          <div className="grid grid-cols-2 border border-[#efd0b4]">
-            {(["available", "occupied"] as const).map((choice) => {
-              const active = editorAvailabilityChoice === choice;
-              return (
-                <Button
-                  key={choice}
-                  type="button"
-                  variant="ghost"
-                  className={`h-11 rounded-none border-r border-[#efd0b4] text-xs uppercase tracking-[0.07em] last:border-r-0 ${active
-                      ? "bg-[#a95312] text-white hover:bg-[#94490f]"
-                      : "bg-white text-[#6e5d50] hover:bg-[#f9f0e8]"
-                    }`}
-                  onClick={() => applyAvailabilityChoice(choice)}
-                  disabled={saving}
-                >
-                  {choice}
-                </Button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-4 grid h-22 place-items-center border border-[#e8d6c6] bg-[#f4f4f4] text-xs font-semibold uppercase tracking-[0.07em] text-[#ab9e92]">
-          Current: {getAreaLabel(form.area_type)} - Zone B
-        </div>
-
         {formError && (
           <div className="mt-3 border border-[#f0b8b8] bg-[#fff3f3] px-3 py-2 text-sm text-[#b64545]">
             {formError}
