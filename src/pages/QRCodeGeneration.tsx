@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 // import JSZip from "jszip";
 // import { saveAs } from "file-saver";
@@ -12,22 +12,6 @@ import {
 import type { TableQrCodeRecord } from "@/types/admin";
 
 // ── icons (inline SVGs to avoid extra deps) ──────────────────────────────────
-const QrIcon = () => (
-  <svg
-    width="18"
-    height="18"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <rect x="3" y="3" width="7" height="7" />
-    <rect x="14" y="3" width="7" height="7" />
-    <rect x="3" y="14" width="7" height="7" />
-    <path d="M14 14h3v3h-3zM17 17h3v3h-3zM14 20h3" />
-  </svg>
-);
-
 const DownloadIcon = () => (
   <svg
     width="14"
@@ -40,20 +24,6 @@ const DownloadIcon = () => (
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <polyline points="7 10 12 15 17 10" />
     <line x1="12" y1="15" x2="12" y2="3" />
-  </svg>
-);
-
-const CloseIcon = () => (
-  <svg
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 
@@ -138,6 +108,7 @@ export default function QRCodeGeneration() {
   );
   const [previewTableId, setPreviewTableId] = useState<number | null>(null);
   const [generating, setGenerating] = useState(false);
+  const generatedDefaultQr = useRef(false);
   const [generatedQrs, setGeneratedQrs] = useState<
     Record<number, TableQrCodeRecord>
   >({});
@@ -191,19 +162,16 @@ export default function QRCodeGeneration() {
     [records, selectedArea],
   );
 
-  const selectAll = useMemo(
-    () =>
-      filteredRecords.length > 0 &&
-      filteredRecords.every((record) => selectedTableIds.has(record.table_id)),
-    [filteredRecords, selectedTableIds],
-  );
-
   useEffect(() => {
     setSelectedTableIds((prev) => {
       const visibleIds = new Set(filteredRecords.map((record) => record.table_id));
       const next = new Set(
         Array.from(prev).filter((tableId) => visibleIds.has(tableId)),
       );
+
+      if (next.size === 0 && filteredRecords[0]) {
+        next.add(filteredRecords[0].table_id);
+      }
 
       if (
         next.size === prev.size &&
@@ -217,41 +185,46 @@ export default function QRCodeGeneration() {
   }, [filteredRecords]);
   
   useEffect(() => {
-    if (selectedTableIds.size === 0) {
-      setPreviewTableId(null);
-      return;
-    }
-
     setPreviewTableId((current) => {
-      if (current === null) return current; // don't reopen after close
+      const visibleIds = new Set(
+        filteredRecords.map((record) => record.table_id),
+      );
 
-      if (!selectedTableIds.has(current)) {
-        return Array.from(selectedTableIds)[0];
+      if (current === null || !visibleIds.has(current)) {
+        return filteredRecords[0]?.table_id ?? null;
       }
 
       return current;
     });
-  }, [selectedTableIds]);
-  const toggleSelectAll = () => {
-    if (selectAll) {
-      setSelectedTableIds(new Set());
-      setPreviewTableId(null);
-    } else {
-      const nextSelectedIds = new Set(filteredRecords.map((r) => r.table_id));
-      setSelectedTableIds(nextSelectedIds);
-      setPreviewTableId(Array.from(nextSelectedIds)[0] ?? null);
-    }
-  };
+  }, [filteredRecords]);
 
-  const toggleTable = (tableId: number) => {
-    const isSelected = selectedTableIds.has(tableId);
-    const isPreviewed = previewTableId === tableId;
+  useEffect(() => {
+    const firstRecord = filteredRecords[0];
+    if (!firstRecord || generatedDefaultQr.current) return;
 
-    if (isSelected && !isPreviewed) {
-      setPreviewTableId(tableId);
-      return;
-    }
+    generatedDefaultQr.current = true;
+    void generateTableQr(firstRecord.table_id)
+      .then(({ qr }) => {
+        const generatedRecord = { ...firstRecord, ...qr };
+        setGeneratedQrs((prev) => ({
+          ...prev,
+          [qr.table_id]: generatedRecord,
+        }));
+        setRecords((prev) =>
+          prev.map((record) =>
+            record.table_id === qr.table_id ? { ...record, ...qr } : record,
+          ),
+        );
+      })
+      .catch((error) => {
+        generatedDefaultQr.current = false;
+        toast.error("Default QR generation failed", {
+          description: parseApiError(error).message,
+        });
+      });
+  }, [filteredRecords]);
 
+  const toggleTableSelection = (tableId: number) => {
     setSelectedTableIds((prev) => {
       const next = new Set(prev);
 
@@ -263,21 +236,17 @@ export default function QRCodeGeneration() {
 
       return next;
     });
-
-    if (!isSelected) {
-      setPreviewTableId(tableId);
-    } else if (isPreviewed) {
-      const remaining = Array.from(selectedTableIds).filter(
-        (id) => id !== tableId,
-      );
-      setPreviewTableId(remaining[0] ?? null);
-    }
   };
 
-  const downloadQr = async (tableId: number, label?: string) => {
+  const downloadQr = async (
+    tableId: number,
+    label?: string,
+    generatedDataUrl?: string | null,
+  ) => {
     try {
       const anchor = document.createElement("a");
       const dataUrl =
+        generatedDataUrl ||
         generatedQrs[tableId]?.qr_code_data_url ||
         records.find((record) => record.table_id === tableId)?.qr_code_data_url;
       const objectUrl = dataUrl
@@ -305,7 +274,7 @@ export default function QRCodeGeneration() {
     }
   };
 
-  const handleGenerateAndPreview = async () => {
+  const handleDownload = async () => {
     if (selectedTableIds.size === 0) {
       toast.error("No tables selected", {
         description: "Please select at least one table.",
@@ -315,7 +284,9 @@ export default function QRCodeGeneration() {
     setGenerating(true);
     try {
       const ids = Array.from(selectedTableIds);
-      const generated = await Promise.all(ids.map((tableId) => generateTableQr(tableId)));
+      const generated = await Promise.all(
+        ids.map((tableId) => generateTableQr(tableId)),
+      );
       setGeneratedQrs((prev) => ({
         ...prev,
         ...Object.fromEntries(
@@ -339,9 +310,20 @@ export default function QRCodeGeneration() {
       );
       const firstId = ids[0];
       setPreviewTableId(firstId);
-      toast.success(`Generated QR for ${selectedTableIds.size} table(s)`);
+
+      for (const { qr } of generated) {
+        const record = records.find((item) => item.table_id === qr.table_id);
+        await downloadQr(
+          qr.table_id,
+          record ? getTableLabel(record) : undefined,
+          qr.qr_code_data_url,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+
+      toast.success(`Downloaded QR for ${selectedTableIds.size} table(s)`);
     } catch (error) {
-      toast.error("QR generation failed", {
+      toast.error("QR download failed", {
         description: parseApiError(error).message,
       });
     } finally {
@@ -351,14 +333,14 @@ export default function QRCodeGeneration() {
 
   return (
     <div
-      className="flex flex-col max-h-[300] h-full"
+      className="flex h-full min-h-0 flex-col overflow-hidden"
       style={{
         backgroundColor: "#FFF8F6",
         fontFamily: "'DM Sans', sans-serif",
       }}
     >
       {/* ── Breadcrumb ── */}
-      <div className="px-6 pt-5 pb-1">
+      <div className="shrink-0 px-6 pt-5 pb-1">
         <p
           style={{
             fontSize: 12,
@@ -384,11 +366,11 @@ export default function QRCodeGeneration() {
 
       {/* ── Main card ── */}
       <div
-        className="mx-6 mt-4 mb-6 flex-1"
+        className="mx-6 mt-4 flex min-h-0 flex-1 flex-col"
         style={{ borderBottom: "2px solid #EA580C", backgroundColor: "#fff" }}
       >
         {/* Card header */}
-        <div className="flex items-center justify-between px-5 py-3">
+        <div className="flex shrink-0 items-center justify-between px-5 py-3">
           <span
             style={{
               fontSize: 14,
@@ -423,9 +405,9 @@ export default function QRCodeGeneration() {
           style={{ borderBottom: "1px solid #f0d5c4" }}
         ></div>
 
-        <div className="px-5 py-4 space-y-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 px-5 py-4">
           {/* ── Area Filter dropdown ── */}
-          <div>
+          <div className="shrink-0">
             <label
               style={{
                 fontSize: 14,
@@ -519,56 +501,89 @@ export default function QRCodeGeneration() {
               </p>
             </div>
           ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 8,
-              }}
-            >
-              {filteredRecords.map((record) => {
-                const isSelected = selectedTableIds.has(record.table_id);
-                const isPreviewed = previewTableId === record.table_id;
-                const label = getTableLabel(record);
-                return (
-                  <button
-                    key={record.table_id}
-                    onClick={() => toggleTable(record.table_id)}
-                    style={{
-                      padding: "10px 6px",
-                      borderRadius: 3,
-                      border: isPreviewed
-                        ? "2px solid #F97316"
-                        : isSelected
-                          ? "1px solid #F97316"
-                          : "1px solid #FDA77A",
-                      backgroundColor: isPreviewed
-                        ? "#F97316"
-                        : isSelected
-                          ? "#FFF1E8"
-                          : "#fff",
-                      color: isPreviewed
-                        ? "#fff"
-                        : isSelected
-                          ? "#C2410C"
-                          : "#1a0a00",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      transition: "all 0.15s",
-                      letterSpacing: "0.04em",
-                    }}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                  gap: 8,
+                }}
+              >
+                {filteredRecords.map((record) => {
+                  const isSelected = selectedTableIds.has(record.table_id);
+                  const isPreviewed = previewTableId === record.table_id;
+                  const label = getTableLabel(record);
+                  return (
+                    <div
+                      key={record.table_id}
+                      onClick={() => setPreviewTableId(record.table_id)}
+                      className="flex items-center gap-2"
+                      style={{
+                        padding: "8px 10px",
+                        borderRadius: 3,
+                        border: isPreviewed
+                          ? "2px solid #F97316"
+                          : isSelected
+                            ? "1px solid #F97316"
+                            : "1px solid #FDA77A",
+                        backgroundColor: isPreviewed
+                          ? "#F97316"
+                          : isSelected
+                            ? "#FFF1E8"
+                            : "#fff",
+                        color: isPreviewed
+                          ? "#fff"
+                          : isSelected
+                            ? "#C2410C"
+                            : "#1a0a00",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                        letterSpacing: "0.04em",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleTableSelection(record.table_id)}
+                        onClick={(event) => event.stopPropagation()}
+                        aria-label={`Select ${label} for download`}
+                        style={{
+                          width: 14,
+                          height: 14,
+                          flexShrink: 0,
+                          cursor: "pointer",
+                          accentColor: "#C2410C",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPreviewTableId(record.table_id)}
+                        className="flex-1"
+                        style={{
+                          border: 0,
+                          padding: "2px 0",
+                          background: "transparent",
+                          color: "inherit",
+                          cursor: "pointer",
+                          font: "inherit",
+                          letterSpacing: "inherit",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
           {/* ── QR Preview panel ── */}
           {previewTableId !== null && (
             <div
+              className="shrink-0"
               style={{
                 border: "1px solid #f0d5c4",
                 borderRadius: 4,
@@ -577,7 +592,7 @@ export default function QRCodeGeneration() {
                 marginTop: 8,
               }}
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="mb-3 flex items-center">
                 <p style={{ fontWeight: 600, color: "#1a0a00", fontSize: 14 }}>
                   {getTableLabel(
                     records.find((r) => r.table_id === previewTableId) ?? {
@@ -589,73 +604,6 @@ export default function QRCodeGeneration() {
                   )}{" "}
                   — QR Preview
                 </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={async () => {
-                      const selectedIds = Array.from(selectedTableIds);
-
-                      // Multiple selected → download all
-                      if (selectedIds.length > 1) {
-                        for (const tableId of selectedIds) {
-                          const rec = records.find(
-                            (r) => r.table_id === tableId,
-                          );
-
-                          await downloadQr(
-                            tableId,
-                            rec ? getTableLabel(rec) : undefined,
-                          );
-
-                          // small delay helps browsers process downloads
-                          await new Promise((resolve) =>
-                            setTimeout(resolve, 200),
-                          );
-                        }
-
-                        return;
-                      }
-
-                      // Single selected → normal download
-                      const rec = records.find(
-                        (r) => r.table_id === previewTableId,
-                      );
-
-                      await downloadQr(
-                        previewTableId,
-                        rec ? getTableLabel(rec) : undefined,
-                      );
-                    }}
-                    className="flex items-center gap-1 px-3 py-1"
-                    style={{
-                      border: "1px solid #e85c00",
-                      borderRadius: 3,
-                      backgroundColor: "#fff",
-                      color: "#e85c00",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <DownloadIcon />
-                    Download
-                  </button>
-                  <button
-                    onClick={() => setPreviewTableId(null)}
-                    className="flex items-center gap-1 px-3 py-1"
-                    style={{
-                      border: "1px solid #ccc",
-                      borderRadius: 3,
-                      backgroundColor: "#fff",
-                      color: "#555",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <CloseIcon />
-                    Close
-                  </button>
-                </div>
               </div>
               <img
                 key={previewTableId}
@@ -681,19 +629,15 @@ export default function QRCodeGeneration() {
         </div>
       </div>
 
-      {/* ── Sticky footer actions ── */}
+      {/* ── Footer actions ── */}
       <div
-        className="max-w-317 w-full mx-auto"
+        className="w-full max-w-317 shrink-0 mx-auto px-6 pb-4 pt-3"
         style={{
-          position: "sticky",
-          bottom: 0,
-          // backgroundColor: "#fff",
-          // borderTop: "1px solid #f0d5c4",
-          marginTop: 16,
+          backgroundColor: "#FFF8F6",
         }}
       >
         <button
-          onClick={() => void handleGenerateAndPreview()}
+          onClick={() => void handleDownload()}
           disabled={generating || selectedTableIds.size === 0}
           className="w-full max-w-317 mx-auto flex items-center justify-center gap-2 py-4"
           style={{
@@ -709,10 +653,10 @@ export default function QRCodeGeneration() {
             transition: "background-color 0.2s",
           }}
         >
-          <QrIcon />
+          <DownloadIcon />
           {generating
-            ? "Generating..."
-            : `Generate & Preview${selectedTableIds.size > 0 ? ` (${selectedTableIds.size})` : ""}`}
+            ? "Preparing Download..."
+            : `Download${selectedTableIds.size > 0 ? ` (${selectedTableIds.size})` : ""}`}
         </button>
         <button
           onClick={() => {

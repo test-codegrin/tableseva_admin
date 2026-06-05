@@ -152,11 +152,9 @@ export default function DashboardLayout() {
 
         {/* Profile section */}
         <div>
-          <Button
-            type="button"
-            variant="ghost"
+          <div
             onClick={() => navigate("/profile")}
-            className="h-auto w-full justify-start gap-3 px-2 py-2 text-left"
+            className="h-auto w-full flex justify-start gap-3 px-2 py-2 text-left cursor-pointer"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary">
               {user?.avatar_url ? (
@@ -171,7 +169,7 @@ export default function DashboardLayout() {
                 <p className="truncate text-xs text-zinc-500">{user?.email}</p>
               </div>
             )}
-          </Button>
+          </div>
         </div>
 
         {/* Bottom */}
@@ -196,7 +194,7 @@ export default function DashboardLayout() {
           <div className="flex items-center gap-3">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-2" title="Open profile">
+                <div className="flex items-center gap-2 cursor-pointer" title="Open profile">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary">
                     {user?.avatar_url ? (
                       <img src={user.avatar_url} alt={user.name} className="h-full w-full rounded-full object-cover" />
@@ -205,7 +203,7 @@ export default function DashboardLayout() {
                     )}
                   </div>
                   <span className="hidden text-sm text-zinc-600 md:block">{user?.name || "Admin"}</span>
-                </Button>
+                </div>
               </PopoverTrigger>
               <PopoverContent align="end" sideOffset={8} className="w-52 p-0 overflow-hidden gap-0">
                 <div className="px-4 py-3 border-b border-zinc-100">

@@ -23,7 +23,6 @@ import { parseApiError } from "@/api/apiClient";
 import { useConfirmDialog } from "@/components/providers/ConfirmDialogProvider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -326,8 +325,6 @@ export default function ItemName() {
   }, [page, totalPages]);
 
   const activeItems = items.filter((item) => item.status === 1).length;
-  const menuHealthScore =
-    items.length === 0 ? 0 : Math.round((activeItems / items.length) * 100);
   const formIsDirty = useMemo(
     () => serializeForm(form) !== formBaseline,
     [form, formBaseline],
@@ -729,14 +726,35 @@ export default function ItemName() {
             Manage your digital menu, pricing, and availability states.
           </p>
         </div>
-        <Button
-          type="button"
-          onClick={openCreateScreen}
-          className={accentButtonClass}
-        >
-          <RiAddLine className="size-4" />
-          Add Item
-        </Button>
+        <div className="flex flex-wrap items-stretch justify-end gap-3">
+          <div className="flex min-w-[250px] items-center border border-[#e7cdb8] bg-white">
+            <div className="flex-1 px-4 py-2.5">
+              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-[#9b8a7b]">
+                Total Items
+              </p>
+              <p className="mt-1 text-xl font-bold leading-none text-[#2f241d]">
+                {items.length}
+              </p>
+            </div>
+            <div className="h-10 w-px bg-[#e7cdb8]" />
+            <div className="flex-1 px-4 py-2.5">
+              <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-[#9b8a7b]">
+                Active Items
+              </p>
+              <p className="mt-1 text-xl font-bold leading-none text-[#16a34a]">
+                {activeItems}
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            onClick={openCreateScreen}
+            className={`${accentButtonClass} h-auto min-h-14`}
+          >
+            <RiAddLine className="size-4" />
+            Add Item
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-4 border border-[#efd1b4] bg-white p-4">
@@ -854,9 +872,6 @@ export default function ItemName() {
           <Table>
             <TableHeader className="bg-[#ffeae0] text-[#584237] uppercase tracking-[0.04em]">
               <TableRow>
-                <TableHead className="w-9">
-                  <Checkbox />
-                </TableHead>
                 <TableHead className="text-[14px] text-[#584237] font-bold">
                   Item Name
                 </TableHead>
@@ -880,14 +895,14 @@ export default function ItemName() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={6}>
                     <Loader message="Loading items..." className="min-h-25" />
                   </TableCell>
                 </TableRow>
               ) : paginatedItems.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={6}
                     className="py-10 text-center text-[#9d8e82]"
                   >
                     No menu items found.
@@ -901,9 +916,6 @@ export default function ItemName() {
                       key={item.item_id}
                       className="border-b border-[#f3e8de] hover:bg-[#fff8f2]"
                     >
-                      <TableCell>
-                        <Checkbox />
-                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <div className="size-10 overflow-hidden border border-[#efdfd0] bg-[#f8f1ea]">
@@ -1039,48 +1051,6 @@ export default function ItemName() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        {/* Total Items */}
-        <div className="border border-[#e7cdb8] bg-[#f7f4f2] px-5 py-4">
-          <p className="text-[16px] font-light uppercase tracking-[0.08em] text-[#9b8a7b]">
-            Total Items
-          </p>
-
-          <p className="mt-2 text-3xl font-bold leading-none text-[#2f241d]">
-            {items.length}
-          </p>
-        </div>
-
-        {/* Active Items */}
-        <div className="border border-[#e7cdb8] bg-[#f7f4f2] px-5 py-4">
-          <p className="text-[16px] font-light uppercase tracking-[0.08em] text-[#9b8a7b]">
-            Active Items
-          </p>
-
-          <p className="mt-2 text-3xl font-bold leading-none text-[#16a34a]">
-            {activeItems}
-          </p>
-        </div>
-
-        {/* Menu Health Score */}
-        <div className="border border-[#f97316] bg-[#f97316] px-5 py-4 text-white md:col-span-2">
-          <p className="text-[16px] font-light uppercase tracking-[0.08em] text-[#ffe7d6]">
-            Menu Health Score
-          </p>
-
-          <p className="mt-2 text-3xl font-bold leading-none">
-            {menuHealthScore}%
-          </p>
-
-          {/* Progress Bar */}
-          <div className="mt-4 h-1 w-full overflow-hidden bg-white/30">
-            <div
-              className="h-full bg-white"
-              style={{ width: `${menuHealthScore}%` }}
-            ></div>
-          </div>
-        </div>
-      </div>
     </section>
   );
 
