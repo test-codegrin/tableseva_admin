@@ -62,7 +62,7 @@ export default function DashboardLayout() {
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50">
       {/* ── Sidebar ── */}
-      <aside className={`${collapsed ? "w-15" : "w-65"} transition-all duration-300 bg-[#F7F7F7] border-r border-zinc-100 flex flex-col shrink-0`}>
+      <aside className={`${collapsed ? "w-15" : "w-65"} h-screen transition-all duration-300 bg-[#F7F7F7] border-r border-zinc-100 flex flex-col shrink-0`}>
 
         {/* Logo */}
         <div className={`flex items-center py-4 ${collapsed ? "justify-center px-2" : "gap-3 px-4"}`}>
@@ -150,11 +150,11 @@ export default function DashboardLayout() {
           })}
         </nav>
 
-        {/* Profile section */}
-        <div>
+        {/* Bottom account panel */}
+        <div className="mt-auto border-t border-zinc-100 px-2 pb-4 pt-3">
           <div
             onClick={() => navigate("/profile")}
-            className="h-auto w-full flex justify-start gap-3 px-2 py-2 text-left cursor-pointer"
+            className={`w-full cursor-pointer text-left ${collapsed ? "flex justify-center py-2" : "flex items-center gap-3 px-1 py-2"}`}
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-primary">
               {user?.avatar_url ? (
@@ -170,16 +170,18 @@ export default function DashboardLayout() {
               </div>
             )}
           </div>
-        </div>
 
-        {/* Bottom */}
-        <div className="px-2 pb-4 space-y-1 border-t border-zinc-100 pt-3">
-          {!collapsed && (
-            <Button className="w-full gap-2 px-3 font-semibold text-white" onClick={() => navigate("/reservation")}>
-              <span>+ New Reservation</span>
-            </Button>
-          )}
-          <Logoutbox collapsed={collapsed} onLogout={handleLogout} />
+          <div className={`mt-3 space-y-1 ${collapsed ? "" : "px-1"}`}>
+            {!collapsed && (
+              <Button
+                className="h-10 w-full gap-2 px-3 font-semibold text-white"
+                onClick={() => navigate("/reservation")}
+              >
+                <span>+ New Reservation</span>
+              </Button>
+            )}
+            <Logoutbox collapsed={collapsed} onLogout={handleLogout} />
+          </div>
         </div>
       </aside>
 

@@ -333,8 +333,9 @@ export default function QRCodeGeneration() {
 
   return (
     <div
-      className="flex h-full min-h-0 flex-col overflow-hidden"
+      className="flex min-h-0 flex-col overflow-hidden"
       style={{
+        minHeight: "calc(100vh - 64px)",
         backgroundColor: "#FFF8F6",
         fontFamily: "'DM Sans', sans-serif",
       }}
@@ -405,7 +406,7 @@ export default function QRCodeGeneration() {
           style={{ borderBottom: "1px solid #f0d5c4" }}
         ></div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 px-5 py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-5 py-4">
           {/* ── Area Filter dropdown ── */}
           <div className="shrink-0">
             <label
@@ -501,7 +502,7 @@ export default function QRCodeGeneration() {
               </p>
             </div>
           ) : (
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            <div className="min-h-[220px] flex-1 overflow-y-auto pr-1">
               <div
                 style={{
                   display: "grid",
@@ -631,7 +632,7 @@ export default function QRCodeGeneration() {
 
       {/* ── Footer actions ── */}
       <div
-        className="w-full max-w-317 shrink-0 mx-auto px-6 pb-4 pt-3"
+        className="mt-auto w-full max-w-317 shrink-0 mx-auto px-6 pb-4 pt-3"
         style={{
           backgroundColor: "#FFF8F6",
         }}
