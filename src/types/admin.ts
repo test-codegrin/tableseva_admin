@@ -142,6 +142,7 @@ export interface OrderLineItem {
   item_id: number | null;
   item_name: string;
   quantity: number;
+  cooking_instruction?: string | null;
   unit_price: number;
   total_price: number;
   options: OrderLineItemOption[];
@@ -160,6 +161,7 @@ export interface OrderLineItemOption {
 export interface OrderItemQuantity {
   item_name: string;
   quantity: number;
+  cooking_instruction?: string | null;
 }
 
 export interface OrderSummary {

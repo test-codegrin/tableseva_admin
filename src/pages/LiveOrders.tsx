@@ -60,6 +60,11 @@ const formatCurrency = (amount: number) =>
 const formatOptionLabel = (groupName: string | null | undefined, optionName: string) =>
   groupName?.trim() ? `${groupName}: ${optionName}` : optionName;
 
+const formatCookingInstruction = (value: string | null | undefined) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+};
+
 export default function LiveOrders() {
   const confirm = useConfirmDialog();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
@@ -365,7 +370,21 @@ export default function LiveOrders() {
                   <TableCell>{order.order_id}</TableCell>
                   <TableCell>{order.table_number ?? "-"}</TableCell>
                   <TableCell>
-                    {order.item_count ?? order.item_names?.length ?? 0}
+                    <div className="space-y-1">
+                      <p>{order.item_count ?? order.item_names?.length ?? 0}</p>
+                      {order.item_quantities?.length ? (
+                        <div className="space-y-1 text-xs text-[#7b6758]">
+                          {order.item_quantities.map((item, index) => (
+                            <p key={`${item.item_name}-${index}`}>
+                              {item.item_name} x{item.quantity}
+                              {formatCookingInstruction(item.cooking_instruction)
+                                ? ` - ${formatCookingInstruction(item.cooking_instruction)}`
+                                : ""}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                   </TableCell>
                   <TableCell>{order.total_quantity ?? 0}</TableCell>
                   <TableCell>
@@ -388,7 +407,7 @@ export default function LiveOrders() {
                   <TableCell className="text-right ">
                     <div className="flex justify-end gap-2">
                       <Button
-                        className="bg-white border border-[#e7cdb8] hover:bg-[#f8efe7]"
+                        className="border border-[#e7cdb8] bg-white text-[#4d3d32] hover:bg-[#f8efe7] hover:text-[#4d3d32]"
                         type="button"
                         size="sm"
                         onClick={() => {
@@ -511,6 +530,7 @@ export default function LiveOrders() {
                     <TableRow>
                       <TableHead>Item</TableHead>
                       <TableHead>Qty</TableHead>
+                      <TableHead>Instruction</TableHead>
                       <TableHead>Unit Price</TableHead>
                       <TableHead>Total</TableHead>
                     </TableRow>
@@ -519,7 +539,7 @@ export default function LiveOrders() {
                     {selectedOrder.items.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={4}
+                          colSpan={5}
                           className="text-center text-zinc-500"
                         >
                           No line items found.
@@ -550,6 +570,9 @@ export default function LiveOrders() {
                             </div>
                           </TableCell>
                           <TableCell>{line.quantity}</TableCell>
+                          <TableCell>
+                            {formatCookingInstruction(line.cooking_instruction) ?? "-"}
+                          </TableCell>
                           <TableCell>{line.unit_price || "-"}</TableCell>
                           <TableCell>{line.total_price || "-"}</TableCell>
                         </TableRow>
@@ -557,6 +580,41 @@ export default function LiveOrders() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+
+              <div className="border border-zinc-200 p-3">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-zinc-900">Receipt Summary</h3>
+                  <span className="text-xs text-zinc-500">
+                    {selectedOrder.receipt_url ? "Linked to generated receipt" : "Receipt pending"}
+                  </span>
+                </div>
+                {selectedOrder.items.length === 0 ? (
+                  <p className="text-sm text-zinc-500">No receipt items found.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedOrder.items.map((line, index) => (
+                      <div
+                        key={`receipt-${line.item_id ?? line.item_name}-${index}`}
+                        className="flex items-start justify-between gap-4 border-b border-zinc-100 pb-2 last:border-b-0 last:pb-0"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-zinc-900">
+                            {line.item_name} x{line.quantity}
+                          </p>
+                          {formatCookingInstruction(line.cooking_instruction) ? (
+                            <p className="text-xs text-[#c56524]">
+                              Cooking instruction: {formatCookingInstruction(line.cooking_instruction)}
+                            </p>
+                          ) : null}
+                        </div>
+                        <p className="shrink-0 font-medium text-zinc-700">
+                          {line.total_price ? formatCurrency(line.total_price) : "-"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

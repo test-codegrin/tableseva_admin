@@ -554,7 +554,7 @@ export default function QRCodeGeneration() {
                           height: 14,
                           flexShrink: 0,
                           cursor: "pointer",
-                          accentColor: "#C2410C",
+                          accentColor: "#f97316",
                         }}
                       />
                       <button

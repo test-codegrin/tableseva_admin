@@ -66,6 +66,7 @@ const mapOrderLineItem = (value: unknown): OrderLineItem => {
         : null,
     item_name: String(payload.item_name ?? payload.name ?? ""),
     quantity,
+    cooking_instruction: toNullableString(payload.cooking_instruction),
     unit_price: unitPrice,
     total_price: toNumber(payload.total_price, quantity * unitPrice),
     options,
@@ -78,6 +79,7 @@ const mapItemQuantity = (value: unknown): OrderItemQuantity => {
   return {
     item_name: toString(payload.item_name),
     quantity: toNumber(payload.quantity, 0),
+    cooking_instruction: toNullableString(payload.cooking_instruction),
   };
 };
 
@@ -191,6 +193,7 @@ const mapOrderDetail = (value: unknown): OrderDetail => {
         item_id: null,
         item_name: mapped.item_name,
         quantity: mapped.quantity,
+        cooking_instruction: mapped.cooking_instruction,
         unit_price: 0,
         total_price: 0,
         options: [],

@@ -16,6 +16,7 @@ describe("getOrderById", () => {
             item_id: 9,
             item_name: "Burger",
             quantity: 3,
+            cooking_instruction: "No onions",
             unit_price: 120,
             total_price: 360,
             options: [
@@ -51,6 +52,7 @@ describe("getOrderById", () => {
     expect(order.items[0]).toMatchObject({
       item_name: "Burger",
       quantity: 3,
+      cooking_instruction: "No onions",
       options: [
         {
           group_name: "Extra Toppings",
@@ -71,6 +73,41 @@ describe("getOrderById", () => {
     expect(order.items[0].options_text).toBe(
       "Extra Toppings: Cheese x2\nExtra Toppings: Olives x1",
     );
+  });
+
+  it("maps cooking instructions from item_quantities fallback payloads", async () => {
+    vi.spyOn(apiClient, "requestApi").mockResolvedValueOnce({
+      success: true,
+      message: "ok",
+      data: {
+        order: {
+          order_id: 45,
+          status: 0,
+          amount: 320,
+          item_quantities: [
+            {
+              item_name: "Paneer Tikka",
+              quantity: 2,
+              cooking_instruction: "Less spicy",
+            },
+          ],
+        },
+      },
+      raw: null,
+    });
+
+    const order = await getOrderById(45);
+
+    expect(order.item_quantities?.[0]).toMatchObject({
+      item_name: "Paneer Tikka",
+      quantity: 2,
+      cooking_instruction: "Less spicy",
+    });
+    expect(order.items[0]).toMatchObject({
+      item_name: "Paneer Tikka",
+      quantity: 2,
+      cooking_instruction: "Less spicy",
+    });
   });
 });
 
